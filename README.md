@@ -1,7 +1,5 @@
 # kotlin spring boot test project
 
-
-
 ## sequence
 
 - github repository 생성
@@ -61,6 +59,19 @@
 
 - swagger 연동
 
+```build.gradle.kts
+dependencies{
+	// Swagger (OpenAPI)
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
+}
+```
+
+- dir tree convention 정하기
+    - 헥사고날이 뭐지...?
+
+```md
+```
+
 #### user service 구현
 - user table 구현
     - UUID와 auto increase를 모두 사용
@@ -68,16 +79,18 @@
     - 어떤 정보를 가져야하나
         - login, signin page에서 받을 정보
             - 개인정보 정책과 연동되는 부분
-            - 비밀번호는 반드시 암호화되어야한다
+            - 비밀번호는 반드시 암호화되어야한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
 
 
+#### auth service 구현
+- JWT 기반의 인증 시스템 구현
+    - 로그인 성공시 access token과 refresh token 발급
+    - spring security의 http security를 통해 토큰 검증
+
+- 만약 서버가 확장된다면 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
 
 - login page
-    - 진입 : get
-    - 로그인 시도 : post
 - singup page
-    - 진입 : get
-    - 로그인 시도 : post
 - profile page
     - profile update page
 
