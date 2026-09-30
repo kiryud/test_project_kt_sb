@@ -10,7 +10,7 @@
 
 
 - backend tool 추가
-    - api document
+    - 활용 가능한 api document service
         - swagger
         - apidoc
 
@@ -36,6 +36,8 @@
 
 ### mariadb
 - docker compose를 통해 실행 및 관리
+    - 환경변수 없이 임시 값 넣어둔 상태
+    - 다른 환경변수까지 정리된 후 .env를 사용하도록 수정 예정
 - init.sql을 통해 데이터베이스, 테이블 생성 및 초기화
 
 ### spring boot (kotlin)
@@ -55,6 +57,7 @@
             - application.yml에서 dbms 정보를 설정
         - mariadb driver
     - build
+        - JAVA 21
         - gradle kotlin
 
 - swagger 연동
@@ -66,10 +69,20 @@ dependencies{
 }
 ```
 
-- dir tree convention 정하기
-    - 헥사고날이 뭐지...?
+- 레이어드 아키텍쳐
+    - spring boot라서 adaptor를 작성할 필요는 없다
 
 ```md
+controller
+service
+repository
+```
+
+
+
+```md
+dto
+entity
 ```
 
 #### user service 구현
