@@ -3,7 +3,7 @@
 ## sequence
 
 - github repository 생성
-- archetecture 설계
+- architecture 설계
 - tech 결정
 - 결정된 tech를 기반으로 gitignore 제작
     - [gitignore.io](https://www.toptal.com/developers/gitignore)
@@ -21,7 +21,7 @@
         - backend (spring boot)
         - mariadb
     - network
-    - volumn
+    - volume
     - dependency
     - health-check
     - env
@@ -31,10 +31,21 @@
 
 - `init.py`와 `.env.example`을 통한 `.env` 파일 생성
     - 최소한도의 기능과 보안을 가진 최소한도의 정책
-    - default값을 채워주는 형태이지 
+    - default값을 채워주는 형태이지 난수 생성은 없다
+
+### DBMS
+
+#### H2
+- 메모리 상의 가상 dbms
+
+#### supabase
+- postgres 기반의 Backend as a Service
 
 
-### mariadb
+#### mariadb
+
+> docker 이미지 있으니 걍 쓰는중
+
 - docker compose를 통해 실행 및 관리
     - 환경변수 없이 임시 값 넣어둔 상태
     - 다른 환경변수까지 정리된 후 .env를 사용하도록 수정 예정
@@ -44,6 +55,7 @@
 - [Spring Initializr](https://start.spring.io/)를 활용한 프로젝트 생성
     - dependencies
         - spring web
+            - servlet 기반
         - spring security
             - default로 서버 접근시 로그인 페이지로 링크, user와 실행시 나오는 비밀번호로 로그인 가능
             - 최신 버전에서는 WebSecurityConfigurerAdapter를 상속받지 않음
@@ -60,7 +72,7 @@
         - JAVA 21
         - gradle kotlin
 
-- swagger 연동
+- `swagger` 연동
 
 ```build.gradle.kts
 dependencies{
@@ -69,8 +81,16 @@ dependencies{
 }
 ```
 
+- 테스트
+    - `WebMvcTest`
+        - 기본적으로 포함된 `spring-boot-starter-webmvc-test`를 통해 테스트 가능
+
 - 레이어드 아키텍쳐
-    - spring boot라서 adaptor를 작성할 필요는 없다
+    - controller - service - repository
+    - 이 경우 spring boot라서 adaptor를 작성할 필요는 없다
+
+- 헥사고날 아키텍쳐
+    - 
 
 ```md
 controller
@@ -79,18 +99,24 @@ repository
 ```
 
 
-
 ```md
 dto
 entity
 ```
 
+#### service 구현
+- service에서 제공하는 기능 정리
+- table(entity) 정의 및 구현
+- dto, repository 정의 및 구현
+- controller, service 정의 및 구현
+
 #### user service 구현
+- user service의 기능 정리
 - user table 구현
-    - UUID와 auto increase를 모두 사용
+    - UUID와 auto increase를 모두 사용?
     - 어떤 값이 PK가 되어야하는가?
     - 어떤 정보를 가져야하나
-        - login, signin page에서 받을 정보
+        - login(signin), signup page에서 받을 정보
             - 개인정보 정책과 연동되는 부분
             - 비밀번호는 반드시 암호화되어야한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
 
@@ -102,10 +128,30 @@ entity
 
 - 만약 서버가 확장된다면 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
 
+
+### frontend page?
+
 - login page
-- singup page
+- signup page
 - profile page
     - profile update page
+
+
+## frontend knowledge? experience?
+
+### web
+
+- (html/css/js)
+    - SPA를 위한 router 구조 이해
+
+- vite
+- typescript
+- react
+- nextjs
+
+### app
+
+
 
 --- 
 
@@ -123,7 +169,7 @@ entity
 
 - java 기반의 spring 경험 있음
     - CURD 가능한 mariadb와 연동된 jpa 사이트 제작 경험
-- kotlim 기반의 spring boot api 서버 경험 있음
+- kotlin 기반의 spring boot api 서버 경험 있음
     - 단, 실무적으로 개조되어 스웨거도 있는 세팅 위에서 CRUD api를 추가해 본 경험 수준임
         - .env 직접 세팅
         - swagger를 통해 crud api test해봄
