@@ -17,9 +17,11 @@
 - `docker-compose.yml` 제작
     - container
         - nginx
+            - config (*.conf)
         - frontend (null)
         - backend (spring boot)
-        - mariadb
+        - dbms
+            - mariadb
     - network
     - volume
     - dependency
@@ -33,10 +35,38 @@
     - 최소한도의 기능과 보안을 가진 최소한도의 정책
     - default값을 채워주는 형태이지 난수 생성은 없다
 
+### nginx
+
+- *.conf
+    - listen
+    - server name
+    - root
+    - index
+    - log (access_log, error_log)
+    - ssl (ssl_protocols, ssl_certificate, ssl_certificate_key)
+    - location
+        - try_files
+        - proxy_pass
+        - proxy_http_version
+        - proxy_set_header
+        - proxy_set_header Upgrade
+        - proxy_set_header Connection
+        - proxy_set_header Accept-Encoding
+
+#### 인증서 관리
+- ca_certification
+
 ### DBMS
 
 #### H2
 - 메모리 상의 가상 dbms
+
+#### redis
+- in memory, nosql db
+
+#### postgres
+- 기본적인 사용은 RDBMS의 공통적인 사용법과 같다
+- 부가 기능이 굉장히 많은데 아직 학습하진 못했다
 
 #### supabase
 - postgres 기반의 Backend as a Service
@@ -85,11 +115,11 @@ dependencies{
     - `WebMvcTest`
         - 기본적으로 포함된 `spring-boot-starter-webmvc-test`를 통해 테스트 가능
 
-- 레이어드 아키텍쳐
+- 레이어드 아키텍처
     - controller - service - repository
-    - 이 경우 spring boot라서 adaptor를 작성할 필요는 없다
+    - 이 경우 spring boot라서 adapter를 작성할 필요는 없다
 
-- 헥사고날 아키텍쳐
+- 헥사고날 아키텍처
     - 
 
 ```md
@@ -98,11 +128,32 @@ service
 repository
 ```
 
+- controller의 역할과 책임
+    - request body
+    - query parameter
+    - path variable
+    - response body
+
+- service의 역할과 책임
+    - 
+
+
+- repository의 역할과 책임
+
 
 ```md
 dto
 entity
 ```
+
+- dto의 역할과 책임
+
+- request dto의 역할과 책임
+
+- response dto의 역할과 책임
+
+- entity의 역할과 책임
+
 
 #### service 구현
 - service에서 제공하는 기능 정리
@@ -113,12 +164,12 @@ entity
 #### user service 구현
 - user service의 기능 정리
 - user table 구현
-    - UUID와 auto increase를 모두 사용?
+    - UUID와 auto increment를 모두 사용?
     - 어떤 값이 PK가 되어야하는가?
     - 어떤 정보를 가져야하나
         - login(signin), signup page에서 받을 정보
             - 개인정보 정책과 연동되는 부분
-            - 비밀번호는 반드시 암호화되어야한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
+            - 비밀번호는 반드시 해시로 저장되어야한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
 
 
 #### auth service 구현
@@ -141,8 +192,12 @@ entity
 
 ### web
 
+#### vanilla javascript
+
 - (html/css/js)
     - SPA를 위한 router 구조 이해
+
+#### library & framework
 
 - vite
 - typescript
@@ -151,6 +206,14 @@ entity
 
 ### app
 
+- android native
+    - kotlin
+
+- ios
+    - swift
+
+- cross platform
+    - flutter
 
 
 --- 
@@ -161,14 +224,15 @@ entity
 
 ### 42서울 수료
 
-- inception, 트센 기반의 웹 아키텍쳐 이해도가 있음
+- inception, 트센 기반의 웹 아키텍처 이해도가 있음
 
 - flutter로 모바일 앱 제작 실습은 해봄. (api 연동 로그인, 정보 받아오기 정도)
 
 ### spring framework experience
 
 - java 기반의 spring 경험 있음
-    - CURD 가능한 mariadb와 연동된 jpa 사이트 제작 경험
+    - CRUD 가능한 mariadb와 연동된 jsp 사이트 제작 경험
+    - jdbc, jpa(ORM) 의 단순 사용 경험 있음
 - kotlin 기반의 spring boot api 서버 경험 있음
     - 단, 실무적으로 개조되어 스웨거도 있는 세팅 위에서 CRUD api를 추가해 본 경험 수준임
         - .env 직접 세팅
@@ -176,13 +240,13 @@ entity
 
 ## 실습 기준
 
-- 도메인 영역을 위해 필요한 동작에 대하여 어떤 방식으로 구현할 수 있을지 고민하며 벡엔드 서버 구조를 학습한다
+- 도메인 영역을 위해 필요한 동작에 대하여 어떤 방식으로 구현할 수 있을지 고민하며 백엔드 서버 구조를 학습한다
 
 - 어떻게 제작할 수 있는지 모르는 상태이기 때문에 먼저 웹 프로젝트 기반으로 백엔드 서버를 만들어보며 이 환경에서 가능한 동작이 무엇인지 배워야한다
 
 - 문서단위 서비스를 기반으로 하기 때문에 nosql의 도입이 필요하지만 user service는 rdbms 기반으로 해야하니 일단 동작을 확인하는 단계인 지금 시점의 실습에서는 mariadb만 사용한다
 
-- 대부분의 서비스는 지금 단계에서 제작하려고 집중할 수 없다. 당장의 목표는 내가 기본적인 벡엔드 서버 구성을 할 수 있는 것을 증명할 저수준의 포폴이다.
+- 대부분의 서비스는 지금 단계에서 제작하려고 집중할 수 없다. 당장의 목표는 내가 기본적인 백엔드 서버 구성을 할 수 있는 것을 증명할 저수준의 포폴이다.
 
 - TDD 기반으로 의사코드 - 테스트코드 - 개발 순서
 
@@ -192,12 +256,13 @@ entity
 
 - 옵시디언과 유사한 문서 관리 프로그램
     - 기존 옵시디언의 그래프에 가중치가 없어 완전히 만족스럽지 못했음
-    - local저장소를 기반으로 작동하지만 결국 모든 플랫폼에서 개별적으로 관리해야함
-    - 웹을 통해 접근 가능한 로컬 기반으로 저장되는 지식 저장소를 만들고싶다
-    - 내가 원하는 문서만 외부에서 접근 가능하도록 하고싶다
-    - 각 문서에 대한 여러가지 정보가 문서를 외부에 공개하는 시점에서 내가 원하지 않는 정보를 숨길 수 있게 하고싶다
+    - local 저장소를 기반으로 작동하지만 결국 모든 플랫폼에서 개별적으로 관리해야함
+    - 웹을 통해 접근 가능한 로컬 기반으로 저장되는 지식 저장소를 만들고 싶다
+    - 내가 원하는 문서만 외부에서 접근 가능하도록 하고 싶다
+    - 각 문서에 대한 여러가지 정보가 문서를 외부에 공개하는 시점에서 내가 원하지 않는 정보를 숨길 수 있게 하고 싶다
 
 #### 개요
+- markdown 기반의 문서를 해석할 수 있어야한다
 - 제텔카스텐 기법을 적용할 수 있어야한다
 - 각 문서는 view 모드와 write모드를 가진다
 - 문서는 제목, 내용, 메타데이터를 가진다
@@ -212,6 +277,5 @@ entity
 
 #### 주의
 - 해당 서비스가 obsidian vault의 정보에 접근해 바로 사용하는지, 읽고 정리하여 db에 저장 후 동작하며 웹에서의 기록을 저장할 때 vault에 문서화 할지, 출력을 요청받지 않는 상황이라면 db에 정보를 저장만 하고 있을지 결정된 부분 없음. 세 가지 동작 이외의 경우도 있을 수 있음
-
 
 
