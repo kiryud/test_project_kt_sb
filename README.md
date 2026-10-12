@@ -120,7 +120,7 @@ dependencies{
     - 이 경우 spring boot라서 adapter를 작성할 필요는 없다
 
 - 헥사고날 아키텍처
-    - 
+    - port와 adapter를 기반으로 결합도를 낮춰 더 유연한 개발이 가능해짐
 
 ```md
 controller
