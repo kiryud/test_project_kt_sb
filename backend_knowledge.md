@@ -129,7 +129,9 @@
     - `uts` : 호스트 이름 (`hostnamectl`로 확인할 수 있는 그 이름)
     - `user` : 사용자(`UID`), 그룹(`GID`)의 권한 관리
     - `cgroup`은 namespace로 격리된 프로세스들이 사용할 수 있는 자원을 제한하는 기술이다 (이걸 돈 받고 파는게 cloud server) (llm, 기계학습쪽에선 gpu 빌려쓰기로도 잘 알려져 있다)
+    - `time` : 시스템 시간 격리
 
+> Linux kernel 5.6 이후 기존의 `cgroup`과 새롭게 추가된 `time`을 포함해 8개의 네임스페이스를 가지고 있다 한다
 > `mount` : USB나 외장 하드 연결했을때 사용할 수 있게 해주는 그 기능이다
 > `ipc` : `pipex`를 평가하거나 선택하면 한번쯤은 설명을 듣거나 하게 될 내용이다
 
@@ -169,7 +171,37 @@ kotlin spring boot는 한국에서 가장 대중적인 구조라 일단 백엔�
 언어, 프레임워크마다 다른 형태로 구현되어있지만 개념과 구조는 다를 이유가 없는 영역
 (아직 뉴비들은 못한 `ft_printf`를 쓸때마다 설계 떠올리는 사람은 없을걸? 가능한 사람은 있어도 ㅋㅋ)
 
+
+
 ### 데이터베이스
 
 
 
+---
+
+## keyword 정리
+
+- `network`
+    - `protocol`
+        - `L4` : `tcp` `udp`
+        - `L7` : `http` `https` `ftp` `smtp` `dns` `ssh`
+    - `http api`
+        - `method` : `GET` `POST` `PUT` `DELETE` `PATCH` `OPTIONS`
+        - `request` : `header` `body`
+        - `response` : `status code` `header` `body`
+
+
+- `server`
+    - `3-tier architecture`
+        - `webserver`
+            - `httpd` `nginx`
+        - `WAS`(`web application server`)
+            - `C / socket`
+            - `C++ / socket`
+            - `C# / URI / ASP.net`
+        - `DBMS`
+            - `rdbms` `nosql`
+    - `middleware`
+        - `scale-out & async`
+            - `in-memory / cache` : `redis`
+            - `message broker` : `rabbitmq` `kafka`
