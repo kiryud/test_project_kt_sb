@@ -8,8 +8,8 @@ def main():
         print(f"오류: '{EXAMPLE_FILE}' 파일을 찾을 수 없습니다.")
         return
     if os.path.exists(ENV_FILE):
-        overwrite = input(f"⚠️ '{ENV_FILE}' 파일이 이미 존재합니다. 덮어쓰시겠습니까? (y/N): ")
-        if overwrite.lower() != 'y':
+        overwrite = input(f"⚠️ '{ENV_FILE}' 파일이 이미 존재합니다. 덮어쓰시겠습니까? (Y/N): ")
+        if overwrite.lower() != 'Y':
             print("작업을 취소합니다.")
             return
     with open(EXAMPLE_FILE, 'r', encoding='utf-8') as f:
