@@ -53,6 +53,8 @@
         - proxy_set_header Connection
         - proxy_set_header Accept-Encoding
 
+- ssl은 더이상 사용하면 안된다. tls에서도 v1.2, v1.3을 써야한다
+
 #### 인증서 관리
 - ca_certification
 
@@ -99,7 +101,7 @@
             - application.yml에서 dbms 정보를 설정
         - mariadb driver
     - build
-        - JAVA 21
+        - JAVA 21 이상
         - gradle kotlin
 
 - `swagger` 연동
@@ -173,9 +175,10 @@ entity
 
 
 #### auth service 구현
-- JWT 기반의 인증 시스템 구현
+- [`JWT`](#jwt) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
-    - spring security의 http security를 통해 토큰 검증
+        - refresh token을 user에게 제공
+    - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
 
 - 만약 서버가 확장된다면 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
 
@@ -279,3 +282,268 @@ entity
 - 해당 서비스가 obsidian vault의 정보에 접근해 바로 사용하는지, 읽고 정리하여 db에 저장 후 동작하며 웹에서의 기록을 저장할 때 vault에 문서화 할지, 출력을 요청받지 않는 상황이라면 db에 정보를 저장만 하고 있을지 결정된 부분 없음. 세 가지 동작 이외의 경우도 있을 수 있음
 
 
+---
+
+# JSON Web Token
+
+## JWT의 종류
+- `JWT`는 `JWS (JSON Web Signature)`와 `JWE (JSON Web Encryption)`로 나뉠 수 있다.
+    - 기본적으로 우리가 api를 만들 때 사용하는 형태가 `JWS`이다
+    - `JWE`는 Base64URL 인코딩만 되어있는 `JWS`와 달리 메세지 전체가 암호화(encryption)되어있다
+    - 어떤 값도 넣을 수 있기때문에 중첩 토큰(`Nested JWT`)이 가능하며 엄밀하게 따지자면 JWT는 명확하게 두 영역으로 나뉘지 않는다
+- JWS에서는 header, payload, signature로 JWE에서는 header, encrypted_key, iv, ciphertext, tag로 구성되며 JWS에서의 header의 alg, JWE에서의 header의 alg, enc만이 필수(MUST)이고 이 외의 모든 claim은 optional하다
+
+```javascript
+// JWE
+BASE64URL(UTF8(JWE Protected Header)) || '.' ||
+BASE64URL(JWE Encrypted Key) || '.' ||
+BASE64URL(JWE Initialization Vector) || '.' ||
+BASE64URL(JWE Ciphertext) || '.' ||
+BASE64URL(JWE Authentication Tag)
+
+// JWS
+BASE64URL(UTF8(JWS Protected Header)) || '.' ||
+BASE64URL(JWS Payload) || '.' ||
+BASE64URL(JWS Signature)
+```
+
+## JWT 관련 RFC 문서와 간단한 설명
+
+> irc처럼 RFC문서를 기반으로 학습하려고 알아본건데 그냥 문서 정리만 해두고 개념은 다른데서 구해서 정리하도록 하자
+
+> 세부 주소 경로의 시작점을 `rfc`대신 `info`로 교체 후 `.html`을 지우면 더 보기 좋은 사이트가 나온다
+
+- [JWS - RFC 7515](https://www.rfc-editor.org/rfc/rfc7515.html) : `header`에서 암호화 관련 요소
+- [JWE - RFC 7516](https://www.rfc-editor.org/rfc/rfc7516.html) : 토큰 전체 `encryption`한 특수 규격
+- [JWK - RFC 7517](https://www.rfc-editor.org/rfc/rfc7517.html) : JWT를 통해 key를 주고받을 때의 규격
+- [JWA - RFC 7518](https://www.rfc-editor.org/rfc/rfc7518.html) : `JWT signature` 암호화 알고리즘
+- [JWT - RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html) : JWT 정의 문서
+- [JWT (updated) - RFC 7797](https://www.rfc-editor.org/rfc/rfc7797.html) : payload에서 Base64URL 안쓰기 (...? 왜?)
+- [JWT (updated) - RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html) : 보안 체크리스트
+- [JWT for OAuth 2.0 - RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html) : OAuth 2.0에서의 JWT 권장 규격
+- [JWA (updated) - RFC 9864](https://www.rfc-editor.org/rfc/rfc9864.html) : JWT signature 암호화 알고리즘의 업데이트 버전 문서
+- 이 외에도 있고, 추가될 수 있지만 이정도만 정리해두면 될 것 같다
+
+## JWT(JWS)
+
+- header
+    - 해당 토큰에 대한 정보
+    - JWS, JWE의 header 구성이 다르고 경우에 따라 선택해 구성해야한다
+- payload
+    - 이 영역에선 registered claim과 겹치지 않는 모든 것이 허용된다
+- signature
+    - header와 payload를 Base64URL 인코딩 후 구분자 '.'으로 연결한 뒤 secret key로 sign한 값
+- 세 영역은 '.'을 구분자로 사용한다
+    - Base64URL(header).Base64URL(payload).Base64URL(signature(Base64URL(header).Base64URL(payload), key))
+- 암호화되어있지 않음
+    - 열람은 모두 가능
+    - 시그니처의 의의는 내가 생성한 JWT가 맞는지 확인하는 것이다
+- ascii는 Base128, 확장 아스키는 Base256이라 할 수 있다
+- Base64 `AZaz09+/` (`=` 4글자 규칙을 위한 빈칸 padding용 문자)
+    - url에서 구분자로 사용하는 /, = 및 공백으로 해석되는 +를 사용하고있다
+- Base64URL `AZaz09-_`
+    - url에서 구분자로 사용하지 않는 '+'를 대체하는 '-', '/'를 대체하는 '_'를 사용하며 패딩은 사용하지 않는다
+
+- `NumericDate`
+    - JWT - RFC7519 2. Terminology - NumericDate에서 확인 가능
+    - 1970-01-01T00:00:00Z UTC를 기준으로 초 단위 표기
+    - 윤초 없이 모든 1d는 86400s로 계산한다
+    - payload의 exp, nbf, iat에서 사용한다
+
+
+```json (header)
+{
+    "typ": "JWT", # JWS라고 안쓰고 JWT라고 쓴다
+    "alg": "signature algorithm", # signature를 생성할 때 쓴 algorithm
+    "kid": "key id", # signature를 생성할 때 쓴 key의 id(name)
+}
+```
+
+```json (payload)
+{
+# Registered Claims
+    # String
+    "iss": "issuer", # 토큰 발급자
+    "sub": "subject", # 토큰 사용자
+    "aud": "audience", # 토큰 수신자
+    "jti": "jwt id", # 토큰 고유 식별자
+    # NumericDate
+    "exp": "expiration date", # 만료 일시
+    "nbf": "not before date", # 활성화 시작 일시
+    "iat": "issued at date", # 발급 일시
+# Public Claims (IANA 공식 등록 또는 충돌 방지 URI)
+    # [OIDC / OAuth 2.0 표준 공용 클레임]
+    "email": "user@example.com",       # 사용자 이메일 (OIDC 표준)
+    "email_verified": true,            # 이메일 인증 완료 여부 (OIDC 표준)
+    "name": "Hong Gil-Dong",           # 사용자 전체 이름 (OIDC 표준)
+    "picture": "https://.../img.jpg",  # 프로필 이미지 URL (OIDC 표준)
+    "locale": "ko-KR",                 # 사용자 언어/지역 (OIDC 표준)
+    "scope": "read write profile",     # OAuth 2.0 권한 범위 (RFC 9068)
+    "client_id": "my-client-app-1",    # OAuth 2.0 클라이언트 ID (RFC 9068)
+    # [충돌 방지 URI 형태의 공개 클레임]
+    "https://example.com/jwt/role": "admin"  # 도메인 네임스페이스를 활용한 충돌 방지 키
+# Private Claims
+}
+```
+
+- 기본적인 토큰 생성 과정 이해를 위한 js에서 JWT를 만드는 의사코드
+    - Base64URL나 Sign은 실존하지 않는다(물론 할수도 있다)
+    - 다만 대부분의 개발환경에서 적합한 라이브러리가 존재할것이다
+
+```js tokenizer의 의사코드
+jwt_header = {...};
+jwt_payload = {...};
+
+jwt_encode_header = Base64URL.encode(JSON.stringify(jwt_header));
+jwt_encode_payload = Base64URL.encode(JSON.stringify(jwt_payload));
+
+jwt_signature = Sign(jwt_encode_header + '.' + jwt_encode_payload, key);
+jwt_encode_signature = Base64URL.encode(jwt_signature);
+
+jwt_token = `${jwt_encode_header}.${jwt_encode_payload}.${jwt_encode_signature}`;
+```
+
+
+## JWT header parameter, payload claim 정리
+
+> 쓸 일이 있을까싶지만 RFC문서에서 header의 parameter와 payload의 claim을 정리해둠
+
+```markdown (header - JWS)
+- Header Parameter Name: "alg"
+- Header Parameter Description: Algorithm
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.1 of RFC 7515
+
+- Header Parameter Name: "jku"
+- Header Parameter Description: JWK Set URL
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.2 of RFC 7515
+
+- Header Parameter Name: "jwk"
+- Header Parameter Description: JSON Web Key
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.3 of RFC 7515
+
+- Header Parameter Name: "kid"
+- Header Parameter Description: Key ID
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.4 of RFC 7515
+
+- Header Parameter Name: "x5u"
+- Header Parameter Description: X.509 URL
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.5 of RFC 7515
+
+- Header Parameter Name: "x5c"
+- Header Parameter Description: X.509 Certificate Chain
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.6 of RFC 7515
+
+- Header Parameter Name: "x5t"
+- Header Parameter Description: X.509 Certificate SHA-1 Thumbprint
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.7 of RFC 7515
+
+- Header Parameter Name: "x5t#S256"
+- Header Parameter Description: X.509 Certificate SHA-256 Thumbprint
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.8 of RFC 7515
+
+- Header Parameter Name: "typ"
+- Header Parameter Description: Type
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.9 of RFC 7515
+
+- Header Parameter Name: "cty"
+- Header Parameter Description: Content Type
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.10 of RFC 7515
+
+- Header Parameter Name: "crit"
+- Header Parameter Description: Critical
+- Header Parameter Usage Location(s): JWS
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.11 of RFC 7515
+```
+
+```markdown (header - JWE에서 추가된 header parameter)
+- Header Parameter Name: "enc"
+- Header Parameter Description: Encryption Algorithm
+- Header Parameter Usage Location(s): JWE
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.2 of RFC 7516
+
+- Header Parameter Name: "zip"
+- Header Parameter Description: Compression Algorithm
+- Header Parameter Usage Location(s): JWE
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.3 of RFC 7516
+```
+
+```markdown (header - JWE에서 추가할 수 있는 payload의 claim)
+- Header Parameter Name: "iss"
+- Header Parameter Description: Issuer
+- Header Parameter Usage Location(s): JWE
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.1 of RFC 7519
+
+- Header Parameter Name: "sub"
+- Header Parameter Description: Subject
+- Header Parameter Usage Location(s): JWE
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.2 of RFC 7519
+
+- Header Parameter Name: "aud"
+- Header Parameter Description: Audience
+- Header Parameter Usage Location(s): JWE
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.3 of RFC 7519
+```
+
+```markdown (payload)
+- Claim Name: "iss"
+- Claim Description: Issuer
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.1 of RFC 7519
+
+- Claim Name: "sub"
+- Claim Description: Subject
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.2 of RFC 7519
+
+- Claim Name: "aud"
+- Claim Description: Audience
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.3 of RFC 7519
+
+- Claim Name: "exp"
+- Claim Description: Expiration Time
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.4 of RFC 7519
+
+- Claim Name: "nbf"
+- Claim Description: Not Before
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.5 of RFC 7519
+
+- Claim Name: "iat"
+- Claim Description: Issued At
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.6 of RFC 7519
+
+- Claim Name: "jti"
+- Claim Description: JWT ID
+- Change Controller: IESG
+- Specification Document(s): Section 4.1.7 of RFC 7519
+
+```
