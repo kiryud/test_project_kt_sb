@@ -169,13 +169,22 @@ kotlin spring boot는 한국에서 가장 대중적인 구조라 일단 백엔�
 
 인증 인가 Oauth 등등 그런건 다 가져다써야하는 부분임
 언어, 프레임워크마다 다른 형태로 구현되어있지만 개념과 구조는 다를 이유가 없는 영역
-(아직 뉴비들은 못한 `ft_printf`를 쓸때마다 설계 떠올리는 사람은 없을걸? 가능한 사람은 있어도 ㅋㅋ)
 
 
 
 ### 데이터베이스
 
 
+
+## 미분류
+
+개발 주도라는 개념이 있다
+도메인(DDD), 행위(BDD), 테스트(TDD)기반 개발 주도 세 가지는 알고 넘어가면 좋을 듯 하다.
+DDD의 경우 실제 서비스를 기반으로 비즈니스 로직을 정하고 그 정보를 바탕으로 테이블과 엔티티를 설계하는 방향성을 말하고
+BDD의 경우 given when then으로 시나리오를 분석하며
+TDD의 경우 test case 및 test를 먼저 작성하고 코드를 구현하는 방식이다
+
+솔직히 죄다 Driven Development라서 같은 계층의 상보적인 개념인 줄 알았는데 계층이 달라서 저 세가지는 상호보완적이었다
 
 ---
 
@@ -189,6 +198,13 @@ kotlin spring boot는 한국에서 가장 대중적인 구조라 일단 백엔�
         - `method` : `GET` `POST` `PUT` `DELETE` `PATCH` `OPTIONS`
         - `request` : `header` `body`
         - `response` : `status code` `header` `body`
+    - `RESTful api`
+        - `resource`
+        - `statelessness`
+        - `uniform interface`
+    - `auth`
+        - `session`
+        - `JWT`
 
 
 - `server`
