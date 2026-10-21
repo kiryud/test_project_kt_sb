@@ -54,6 +54,7 @@
         - proxy_set_header Accept-Encoding
 
 - ssl은 더이상 사용하면 안된다. tls에서도 v1.2, v1.3을 써야한다
+    - [지원 중지 권고](#TLS)
 
 #### 인증서 관리
 - ca_certification
@@ -163,7 +164,8 @@ entity
     - api의 반환값을 더 쉽게 만들 수 있도록 잘 설계되어있어야한다
 
 - entity의 역할과 책임
-    - db의 table과 일치해야한다
+    - 일단 지금 수준에선 db의 table과 일치해야한다
+    - ORM에서 가져오는게 전용 dto로 갈 예정이라 사실상 Create나 Update를 요청할 때 사용하게 될 듯 하다
 
 #### service 구현
 - service에서 제공하는 기능 정리
@@ -174,8 +176,11 @@ entity
 #### user service 구현
 - user service의 기능 정리
 - user table 구현
-    - UUID와 auto increment를 모두 사용?
-    - 어떤 값이 PK가 되어야하는가?
+    - UUID와 auto increment를 모두 사용해야하나?
+        - 내부적으로는 indexing하기 좋은 auto increment인 정수를 사용하는것이 좋고 외부에 공개하는 유저 식별자는 UUID로 하는것이 좋다
+    - 어떤 값이 PK가 되어야하는가
+        - 어차피 키를 하나만 쓸것도 아니라 제 3의 값도 테이블 구성에 따라 키가 될 수 있는거라 유저서비스를 위한 정보가 어떻게 구성될지가 중요할 듯 하다
+        - 중복 안되는 정보가 한두개가 아니다
     - 어떤 정보를 가져야하나
         - login(signin), signup page에서 받을 정보
             - 개인정보 정책과 연동되는 부분
@@ -294,6 +299,71 @@ entity
 #### 주의
 - 해당 서비스가 obsidian vault의 정보에 접근해 바로 사용하는지, 읽고 정리하여 db에 저장 후 동작하며 웹에서의 기록을 저장할 때 vault에 문서화 할지, 출력을 요청받지 않는 상황이라면 db에 정보를 저장만 하고 있을지 결정된 부분 없음. 세 가지 동작 이외의 경우도 있을 수 있음
 
+---
+
+# certification
+
+- CA(Certificate Authority)
+    - self-signed certificate는 신뢰할 수 없는 대상 중 하나이다 (openssl로 대충 만든거니...)
+
+
+- CA-certificate
+    - DNS 과정에서 신뢰할 수 있는 최상위 인증 기관들의 Root CA public key의 목록을 제공해주는 프로그램
+    - package manager를 통해 cli환경에서의 명령어(프로그램)을 설치한다면 항상 보이고 주기적으로 업데이트된다
+
+- openssl
+    - 단순히 암복호화 연산을 해주는 c 프로그램
+    - ssh에서 ssh-keygen이나 암호화, 복호화는 여기에 맡긴다
+
+- letsencrypt
+    - 무료 공인 인증 기관
+    - 단 90일마다 만료되어 인증을 계속하려면 주기적으로 갱신을 해야만 한다
+    - certbot
+        - nginx등의 웹 서버의 config를 참조해 자동으로 인증서를 갱신해주는 프로그램
+        - 만료 30일 전마다 연장해준다
+
+---
+
+> 세부 주소 경로의 시작점을 `rfc`대신 `info`로 교체 후 `.html`을 지우면 더 보기 좋은 사이트가 나온다
+
+# TLS
+
+## SSL / TLS
+
+- SSL(Secure Sockets Layer)은 1.0, 2.0, 3.0이 있는데 전부 금지되었다
+    - SSL 1.0은 치명적인 보안 결함으로 인해 공개된 적도 없다
+    - [SSL 2.0 금지 - RFC 6176](https://www.rfc-editor.org/rfc/rfc6176.html)
+    - [SSL 3.0 금지 - RFC 7568](https://www.rfc-editor.org/rfc/rfc7568.html)
+
+- TLS (Transport Layer Security)
+    - AES 기반의 대칭키를 통해 더 효율적으로 통신을 암호화한다
+    - [TLS 1.0 - RFC 2246](https://www.rfc-editor.org/rfc/rfc2246.html)
+    - [TLS 1.1 - RFC 4346](https://www.rfc-editor.org/rfc/rfc4346.html)
+    - [TLS 1.2 - RFC 5246](https://www.rfc-editor.org/rfc/rfc5246.html)
+    - [TLS 1.3 - RFC 8446](https://www.rfc-editor.org/rfc/rfc8446.html)
+
+- 인증서를 필수적으로 요구한다
+
+## deprecating TLS 1.0 and TLS 1.1
+
+- [TLS 1.0, 1.1 지원 중지 권고 - RFC 8996](https://www.rfc-editor.org/info/rfc8996/)
+
+---
+
+# OAuth (Open Authorization)
+
+- [OAuth 1.0 - RFC 5849](https://www.rfc-editor.org/rfc/rfc5849.html)
+- [OAuth 2.0 - RFC 6749](https://www.rfc-editor.org/rfc/rfc6749.html)
+    - [OAuth2.0 for Native Apps - RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html)
+- [OAuth 2.0 : Bearer Token Usage - RFC 6750](https://www.rfc-editor.org/rfc/rfc6750.html)
+- [OAuth 2.1](유예중)
+
+[OAuth 공식 홈페이지](https://oauth.net/2/)
+
+- 보안 문제로 1.0, 1.0a는 사용하지 않는다
+- OAuth 2.0은 많은 수정이 이루어져있고 현재 OAuth 2.1이 새 표준으로 만들어지고 있는 상태이다
+- OAuth 2.1은 당분간 표준이 될 수 없어보이니 OAuth 2.0을 기반으로 하더라고 2.1에서 추가되는 중요한 내용은 미리 적용할 수 있어야 한다
+    - 소셜 로그인이 가능한 회사들 대부분이 이미 2.1의 내용을 지켜야만하게 제약한다
 
 ---
 
@@ -323,8 +393,6 @@ BASE64URL(JWS Signature)
 ## JWT 관련 RFC 문서와 간단한 설명
 
 > irc처럼 RFC문서를 기반으로 학습하려고 알아본건데 그냥 문서 정리만 해두고 개념은 다른데서 구해서 정리하도록 하자
-
-> 세부 주소 경로의 시작점을 `rfc`대신 `info`로 교체 후 `.html`을 지우면 더 보기 좋은 사이트가 나온다
 
 - [JWS - RFC 7515](https://www.rfc-editor.org/rfc/rfc7515.html) : `header`에서 암호화 관련 요소
 - [JWE - RFC 7516](https://www.rfc-editor.org/rfc/rfc7516.html) : 토큰 전체 `encryption`한 특수 규격

@@ -58,7 +58,6 @@
     - cookie와 web storage를 이용해 클라이언트의 정보를 직접 저장 및 관리한다
     
 
-
 - `network io`
     - 문서, 사진 등의 정적 파일을 받아오는 경우 (html, css, js등의 웹 문서나 이미지, 영상, 압축된 파일 등)
     - 영상 등의 실시간 스트리밍
@@ -83,6 +82,8 @@
         - 서버와 api를 통해 통신하는 경우 해당 기능은 `Riverpod`으로 관리해야한다
 
 
+
+
 ---
 
 
@@ -96,7 +97,7 @@
 
 ### library
 
-> 내 프로젝트에 직접 가지고 있을 수도 있고, cdn으로도 가져올 수 있다
+> 내 프로젝트에서 직접 가지고 있을 수도 있고, cdn으로도 가져올 수 있다
 
 - css library
     - bootstrap
@@ -106,6 +107,15 @@
 
 
 ## app
+
+### native
+
+#### android
+
+#### ios / ipados
+
+
+## cross-platform
 
 
 
