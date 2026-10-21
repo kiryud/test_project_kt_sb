@@ -108,7 +108,7 @@
 
 ```build.gradle.kts
 dependencies{
-	// Swagger (OpenAPI)
+	// Swagger (OpenAPI) 버전은 프로젝트의 환경에 맞추면 된다
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
 }
 ```
@@ -137,11 +137,12 @@ repository
     - response body
 
 - service의 역할과 책임
-    - 
+    - user의 권한에 따라 요청된 비즈니스 로직을 실행
 
 
 - repository의 역할과 책임
-
+    - JPA(ORM)을 통해 어떻게 DBMS와 소통할지 선언
+    - ORM에서 최종적으로 어떤 SQL을 만드는지 확인해 N+1같은 널리 알려진 문제는 미리 잡아야 한다
 
 ```md
 dto
@@ -149,13 +150,20 @@ entity
 ```
 
 - dto의 역할과 책임
+    - data 전송 객체로서 필요한 범위의 data를 저장 가능해야한다
+    - 불필요한 정보는 빈 공간으로 둘 수 있어야한다
 
 - request dto의 역할과 책임
+    - 요청을 받을 때 오는 정보를 관리할 수 있어야한다
+    - 정보를 관리하면서 생기는 다른 정보도 관리 가능해야한다
 
 - response dto의 역할과 책임
+    - 반환을 위한 정보를 다룰 수 있어야한다
+    - 비즈니스 로직의 동작에 따른 data의 curd가 가능해야한다
+    - api의 반환값을 더 쉽게 만들 수 있도록 잘 설계되어있어야한다
 
 - entity의 역할과 책임
-
+    - db의 table과 일치해야한다
 
 #### service 구현
 - service에서 제공하는 기능 정리
@@ -190,6 +198,11 @@ entity
 - profile page
     - profile update page
 
+## 우리 서버의 api 구현에 대하여
+- 쿠키와 세션
+- JWT와 REDIS
+
+---
 
 ## frontend knowledge? experience?
 
