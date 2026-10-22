@@ -57,7 +57,12 @@
     - [지원 중지 권고](#TLS)
 
 #### 인증서 관리
-- ca_certification
+- ca_certificate
+    - 내 프로젝트와 별개로 시스템에 설치된 root ca public key 목록
+- letsencrypt
+    - 90일 무료 인증서 발급 기관
+- certbot
+    - 만료 30일 전 갱신 봇
 
 ### DBMS
 
@@ -195,6 +200,26 @@ entity
 
 - 만약 서버가 확장된다면 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
 
+## HTTP api with JSON
+
+### JWT가 발급된 상태에서의 통신
+
+```http (POST)
+POST [URL의 PATH] HTTP/1.1
+Host: [URL]
+Authorization: Bearer [JWT]
+Content-Type: application/json
+
+{ "key": "value", ... }
+```
+
+```http (POST)
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "key": "value", ... }
+```
+
 
 ### frontend page?
 
@@ -237,6 +262,7 @@ entity
     - flutter
 
 
+
 --- 
 
 # 기준점
@@ -246,6 +272,8 @@ entity
 ### 42서울 수료
 
 - inception, 트센 기반의 웹 아키텍처 이해도가 있음
+
+### ??
 
 - flutter로 모바일 앱 제작 실습은 해봄. (api 연동 로그인, 정보 받아오기 정도)
 
@@ -301,6 +329,119 @@ entity
 
 ---
 
+# HTTP
+
+## HyperText Transfer Protocol
+
+- [HTTP Documentation](https://httpwg.org/specs/)
+
+- HTTP/0.9 (1991)
+- HTTP/1.0 (1996)
+- HTTP/1.1 (1997)
+    - 여기까진 사람이 헤더를 직접 읽을 수 있다
+- HTTP/2.0 (2015)
+    - 헤더가 이진화되어 더 빠르고 효율적으로 변경됨
+    - 표준에서는 TLS가 강제되지 않지만 모든 브라우저는 TLSv1.2이상을 필수적으로 요구하여 표준과 달리 사실상 필수적인 구성요소가 되었다
+    - HTTP/2.0 표준이 아니라 브라우저에서 요구하는 것을 기준으로 개발해야만 한다
+- HTTP/3 (2022)
+    - QUIC를 사용하기 위해 UDP를 기반으로 한다
+        - TCP는 더이상 사용되지 않는다
+    - TLSv1.3을 기본적으로 요구한다
+
+```request
+[METHOD] [PATH] [Protocol version]
+[headers]
+
+[body]
+```
+
+```response
+[Protocol version] [STATUS CODE] [STATUS MESSAGE]
+[headers]
+
+[body]
+```
+
+```request headers
+GET / HTTP/1.1
+Host: developer.mozilla.org
+Accept-Language: ko
+```
+
+```response headers
+HTTP/1.1 200 OK
+Date: Sat, 09 Oct 2010 14:28:02 GMT
+Server: Apache
+Last-Modified: Tue, 01 Dec 2009 20:18:22 GMT
+ETag: "51142bc1-7449-479b075b2891b"
+Accept-Ranges: bytes
+Content-Length: 29769
+Content-Type: text/html
+
+<!DOCTYPE html... (here comes the 29769 bytes of the requested web page)
+```
+
+- 정말 자세히 알고싶다면 webserv를 검색해서 많은 정보를 알아낼 수 있다
+- HTTP/1.1 버전의 nginx의 config와 유사한 컨피그 파일을 읽어 동작해야하는 웹 서버를 만들어보는 ecole42 5서클의 프로젝트이다
+
+- method는 다양하게 있지만 현실적으로 POST기반으로 모든 요청을 구성하면 된다
+- 보안 문제로 이미 다수의 서비스가 POST만 허용한다
+- 멱등성을 보장하는 method는 GET, PUT, DELETE, HEAD, OPTIONS뿐이다
+    - POST 자체로는 멱등성이 보장되지 않기 때문에 멱등성 키를 따로 사용해 보장하기 위한 노력을 해야한다
+
+
+- [status code](https://developer.mozilla.org/ko/docs/Web/HTTP/Reference/Status) 3자리 정수로 구성된다
+    - 분류
+        - 1xx : informational responses
+        - 2xx : success
+        - 3xx : redirection
+        - 4xx : client errors
+        - 5xx : server errors
+    - 상세한 코드가 존재하지만 00으로 통일하여 불필요하게 자세한 정보를 제공하는것은 피해야한다
+
+## HTTP headers
+
+- [HTTP headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers)
+
+- 진짜 알고 적어야하는 헤더가 뭔지 알아내서 정리를 해야 할 것 같다
+    - [RFC 4229](https://datatracker.ietf.org/doc/html/rfc4229)에만 130개 넘게 정의되어 있다
+
+- [RFC 2616](https://www.rfc-editor.org/rfc/rfc2616)을 기준으로 4가지 영역의 header가 정리되어 있다
+    1. General Header (RFC2616#4.5)
+        - request와 response에 공통적으로 사용되는 header
+        - 전송되는 entity에는 적용되지 않는 헤더 필드가 있다
+    2. Request Header (RFC2616#5.3)
+        - request에서만 사용되는 header
+    3. Response Header (RFC2616#6.2)
+        - response에서만 사용되는 header
+    4. Entity Header (RFC2616#7.1)
+        - message body를 가지는 request와 response 모두 사용되는 header
+
+
+
+
+### header의 유효 거리
+
+- hop by hop
+    - next proxy까지만 유효한 header
+    - proxy에게 특정한 동작을 요구한다
+    - [RFC 2616](https://datatracker.ietf.org/doc/html/rfc2616#section-13.5.1)에 정의된 목록
+        1. Connection
+        2. Keep-Alive
+        3. Proxy-Authenticate
+        4. Proxy-Authorization
+        5. Trailer
+        6. TE
+        7. Transfer-Encoding (예: chunked)
+        8. Upgrade (웹소켓 전환용)
+
+- end to end
+    - 처음부터 끝까지 유효한 header
+    - hop by hop header가 아닌 모든 헤더가 해당됨
+
+
+---
+
 # certification
 
 - CA(Certificate Authority)
@@ -342,7 +483,7 @@ entity
     - [TLS 1.2 - RFC 5246](https://www.rfc-editor.org/rfc/rfc5246.html)
     - [TLS 1.3 - RFC 8446](https://www.rfc-editor.org/rfc/rfc8446.html)
 
-- 인증서를 필수적으로 요구한다
+- 인증서를 필수적으로 요구하며 self-signed certificate를 통해 개발하는 경우 브라우저에서 경고 무시를 해야한다
 
 ## deprecating TLS 1.0 and TLS 1.1
 
@@ -378,14 +519,14 @@ entity
 
 ```javascript
 // JWE
-BASE64URL(UTF8(JWE Protected Header)) || '.' ||
+BASE64URL(JWE Protected Header) || '.' ||
 BASE64URL(JWE Encrypted Key) || '.' ||
 BASE64URL(JWE Initialization Vector) || '.' ||
 BASE64URL(JWE Ciphertext) || '.' ||
 BASE64URL(JWE Authentication Tag)
 
 // JWS
-BASE64URL(UTF8(JWS Protected Header)) || '.' ||
+BASE64URL(JWS Protected Header) || '.' ||
 BASE64URL(JWS Payload) || '.' ||
 BASE64URL(JWS Signature)
 ```
@@ -410,17 +551,21 @@ BASE64URL(JWS Signature)
 - header
     - 해당 토큰에 대한 정보
     - JWS, JWE의 header 구성이 다르고 경우에 따라 선택해 구성해야한다
+    - 기본적으로 `alg`라는 서명 알고리즘을 필수로 가져야하며 JWE의 경우 `enc`도 필수로 가져야한다
 - payload
     - 이 영역에선 registered claim과 겹치지 않는 모든 것이 허용된다
+    - public claim으로 등록된 영역은 관련된 서비스(OAuth 등)를 사용하는 이상 피해야한다
+    - 우리가 만들어 쓰는 claim은 private claim에 속한다고 할 수 있다
 - signature
     - header와 payload를 Base64URL 인코딩 후 구분자 '.'으로 연결한 뒤 secret key로 sign한 값
+    - Sign할 때 쓴 key는 서버에만 존재하므로 같은 결과가 나왔는지 확인해 정상적으로 발급된 토큰인지 확인한다
 - 세 영역은 '.'을 구분자로 사용한다
     - Base64URL(header).Base64URL(payload).Base64URL(signature(Base64URL(header).Base64URL(payload), key))
 - 암호화되어있지 않음
     - 열람은 모두 가능
     - 시그니처의 의의는 내가 생성한 JWT가 맞는지 확인하는 것이다
-- ascii는 Base128, 확장 아스키는 Base256이라 할 수 있다
-- Base64 `AZaz09+/` (`=` 4글자 규칙을 위한 빈칸 padding용 문자)
+- ascii는 Base128, 확장 아스키는 Base256이라고도 할 수 있겠다
+- Base64 `AZaz09+/` (`=` 4글자 규칙을 위한 빈칸 padding용 문자 url에서는 사용되지 않는다)
     - url에서 구분자로 사용하는 /, = 및 공백으로 해석되는 +를 사용하고있다
 - Base64URL `AZaz09-_`
     - url에서 구분자로 사용하지 않는 '+'를 대체하는 '-', '/'를 대체하는 '_'를 사용하며 패딩은 사용하지 않는다
@@ -429,7 +574,9 @@ BASE64URL(JWS Signature)
     - JWT - RFC7519 2. Terminology - NumericDate에서 확인 가능
     - 1970-01-01T00:00:00Z UTC를 기준으로 초 단위 표기
     - 윤초 없이 모든 1d는 86400s로 계산한다
-    - payload의 exp, nbf, iat에서 사용한다
+        - 1d = 24(h) * 60(m) * 60(s)
+        - 현재 시간을 기준으로 하여 초 단위로 변환한 값을 더하거나 빼서 사용한다
+    - payload의 exp, nbf, iat에서 사용된다
 
 
 ```json (header)
