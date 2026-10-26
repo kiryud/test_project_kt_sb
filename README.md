@@ -196,35 +196,54 @@ entity
 
 
 #### auth service 구현
-- [`JWT`](#jwt) 기반의 인증 시스템 구현
+- [`JWT`](#json-web-token) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
-        - refresh token을 user에게 제공
+        - refresh token을 user에게 제공하지 않는 것이 권장된다
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
+    - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
+        - `Authorization: Bearer JWT`의 형태로 `Bearer `뒤에 이어붙인다
 
-- 만약 서버가 확장된다면 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
+- 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
+    - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
 
 ## HTTP api with JSON
 
 ### JWT가 발급된 상태에서의 통신
 
-```http (POST)
+```http request (POST)
 POST [URL의 PATH] HTTP/1.1
-Host: [URL]
+Host: [URL의 HOST(:PORT)]
 Authorization: Bearer [JWT]
 Content-Type: application/json
 
-{ "key": "value", ... }
+{ "key": "value", ... }([Domain][SubAction]RequestDto)
 ```
 
-```http (POST)
+```http response (POST)
 HTTP/1.1 200 OK
 Content-Type: application/json
 
-{ "key": "value", ... }
+{ "key": "value", ... }([Domain][SubAction]ResponseDto)
 ```
 
+### RESTful API
 
-### frontend page?
+- https://[IP_ADDRESS]/domain/{resource-id}/sub-action
+    - action은 기본적으로 `GET` `POST` `PUT` `DELETE`의 `http method`를 기반으로 표현한다
+    - https는 nginx에서 tls 해석 후 http로 reverse proxy 처리하거나 spring security가 직접 처리
+        - nginx를 사용할 땐 spring security에서 http를 거부하지 않게 설정해줘야한다 (default로는 허용한다)
+        - nginx에서 https를 검증해 http를 넘길 때 `X-Forwarded-*` 헤더를 통해 https기반의 요청임을 spring에게 알릴 수 있고 spring은 인식할 수 있게 설정해줘야 redirect를 `https://`로 생성한다
+    - domain은 crud를 할 자원이며 특정하지 않은 조회의 경우 resource-id가 필요하지 않다
+        - 복수형으로 작성해야 한다 (domain의 복수형이 어색해서 사용하지 않았다)
+    - resource-id는 특정 자원을 식별할 수 있는 식별자로서 기능한다
+        - 단순한 정수의 사용은 권장되지 않는다 (방통대 해킹 사태같은 쉬운 접근이 가능해짐)
+        - UUID뿐만아니라 문자열 등의 다양한 값을 활용할 수 있다 (당연히 URL에 사용 불가능한 문자는 포함되지 않는다)
+        - 상세 페이지처럼 특정하여 조회하는 경우 사용된다
+    - sub-action은 특정된 자원을 기반으로 하는 행위를 말한다
+        - 해당 domain의 정보 중 일부를 활용하는 경우가 대표적이다
+
+
+## frontend page?
 
 - login page
 - signup page
@@ -234,6 +253,23 @@ Content-Type: application/json
 ## 우리 서버의 api 구현에 대하여
 - 쿠키와 세션
 - JWT와 REDIS
+
+
+## deployment 
+
+### CICD
+
+- CI
+    - 별게 없다 깃허브같은 code managing service를 사용해서 source code를 관리하여 여러 사람이 지속적으로 협업하여 개발할 수 있으면 된다
+    - 심지어 원시적인 방법인 소스코드의 직접 전달마저도 규정이 있다면 CI가 가능하다고 해도 될 정도로 엄격하지 않은 개념이다
+
+
+- CD
+    - 지속적인 배포는 결국 서버를 완전히 멈추지 않는다는 조건을 만족시켜야한다
+        - 그래서 container기반의 docker, docker compose에서도 pod기반의 kubernetes에서도 병렬 구조이기만 하면 가능하다
+        - 당연히 하나의 컨테이너만 사용해야만 상황에선 불가능하지만 그럴 일이 없다 
+            - 개인 소규모 토이프로젝트에서도 가능한 것이 nginx같은 webserver를 사용해 reverse proxy, health check, server list를 통한 load balancing을 통해 병렬 구조를 만드는 것이기 때문이다
+            - 평소에 하나의 컨테이너만 사용하는 구조더라도 새 서버를 새 컨테이너로 빌드해 테스트를 하고 테스트가 끝나면 요청을 새 컨테이너로 보내도록 하여 무중단 상태로 서버를 옮기는 것이 가능하다
 
 ---
 
@@ -264,21 +300,6 @@ Content-Type: application/json
 - cross platform
     - flutter
 
-## deployment 
-
-### CICD
-
-- CI
-    - 별게 없다 깃허브같은 code managing service를 사용해서 source code를 관리하여 여러 사람이 지속적으로 협업하여 개발할 수 있으면 된다
-    - 심지어 원시적인 방법인 소스코드의 직접 전달마저도 규정이 있다면 CI가 가능하다고 해도 될 정도로 엄격하지 않은 개념이다
-
-
-- CD
-    - 지속적인 배포는 결국 서버를 완전히 멈추지 않는다는 조건을 만족시켜야한다
-        - 그래서 container기반의 docker, docker compose에서도 pod기반의 kubernetes에서도 병렬 구조이기만 하면 가능하다
-        - 당연히 하나의 컨테이너만 사용해야만 상황에선 불가능하지만 그럴 일이 없다 
-            - 개인 소규모 토이프로젝트에서도 가능한 것이 nginx같은 webserver를 사용해 reverse proxy, health check, server list를 통한 load balancing을 통해 병렬 구조를 만드는 것이기 때문이다
-            - 평소에 하나의 컨테이너만 사용하는 구조더라도 새 서버를 새 컨테이너로 빌드해 테스트를 하고 테스트가 끝나면 요청을 새 컨테이너로 보내도록 하여 무중단 상태로 서버를 옮기는 것이 가능하다
 
 --- 
 
@@ -421,7 +442,7 @@ Content-Type: text/html
         - 5xx : server errors
     - 상세한 코드가 존재하지만 사용자의 UI에서는 00으로 통일하여 불필요하게 자세한 정보를 제공하는것은 피해야한다
     - client는 몰라야하지만 frontend에서 필요한 status code는 전달되어야한다
-        - 401, 402, 403등의 frontend와 backend가 작업을 진행해야하는 케이스가 있다
+        - 401, 403, 404등의 frontend와 backend가 작업을 진행해야하는 케이스가 있다
         - 이 때에도 client의 error UI에선 400으로만 표기되어야만한다
 
 - [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
