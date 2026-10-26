@@ -35,6 +35,9 @@
     - 최소한도의 기능과 보안을 가진 최소한도의 정책
     - default값을 채워주는 형태이지 난수 생성은 없다
 
+- deployment
+    - 미정
+
 ### nginx
 
 - *.conf
@@ -165,7 +168,7 @@ entity
 
 - response dto의 역할과 책임
     - 반환을 위한 정보를 다룰 수 있어야한다
-    - 비즈니스 로직의 동작에 따른 data의 curd가 가능해야한다
+    - 비즈니스 로직의 동작에 따른 data의 crud가 가능해야한다
     - api의 반환값을 더 쉽게 만들 수 있도록 잘 설계되어있어야한다
 
 - entity의 역할과 책임
@@ -261,7 +264,21 @@ Content-Type: application/json
 - cross platform
     - flutter
 
+## deployment 
 
+### CICD
+
+- CI
+    - 별게 없다 깃허브같은 code managing service를 사용해서 source code를 관리하여 여러 사람이 지속적으로 협업하여 개발할 수 있으면 된다
+    - 심지어 원시적인 방법인 소스코드의 직접 전달마저도 규정이 있다면 CI가 가능하다고 해도 될 정도로 엄격하지 않은 개념이다
+
+
+- CD
+    - 지속적인 배포는 결국 서버를 완전히 멈추지 않는다는 조건을 만족시켜야한다
+        - 그래서 container기반의 docker, docker compose에서도 pod기반의 kubernetes에서도 병렬 구조이기만 하면 가능하다
+        - 당연히 하나의 컨테이너만 사용해야만 상황에선 불가능하지만 그럴 일이 없다 
+            - 개인 소규모 토이프로젝트에서도 가능한 것이 nginx같은 webserver를 사용해 reverse proxy, health check, server list를 통한 load balancing을 통해 병렬 구조를 만드는 것이기 때문이다
+            - 평소에 하나의 컨테이너만 사용하는 구조더라도 새 서버를 새 컨테이너로 빌드해 테스트를 하고 테스트가 끝나면 요청을 새 컨테이너로 보내도록 하여 무중단 상태로 서버를 옮기는 것이 가능하다
 
 --- 
 
@@ -339,6 +356,8 @@ Content-Type: application/json
 - HTTP/1.0 (1996)
 - HTTP/1.1 (1997)
     - 여기까진 사람이 헤더를 직접 읽을 수 있다
+    - [중단된 구버전 - RFC 2616](https://www.rfc-editor.org/rfc/rfc2616)
+    - [최신 버전 - RFC 9112](https://www.rfc-editor.org/rfc/rfc9112)
 - HTTP/2.0 (2015)
     - 헤더가 이진화되어 더 빠르고 효율적으로 변경됨
     - 표준에서는 TLS가 강제되지 않지만 모든 브라우저는 TLSv1.2이상을 필수적으로 요구하여 표준과 달리 사실상 필수적인 구성요소가 되었다
@@ -384,8 +403,11 @@ Content-Type: text/html
 - 정말 자세히 알고싶다면 webserv를 검색해서 많은 정보를 알아낼 수 있다
 - HTTP/1.1 버전의 nginx의 config와 유사한 컨피그 파일을 읽어 동작해야하는 웹 서버를 만들어보는 ecole42 5서클의 프로젝트이다
 
-- method는 다양하게 있지만 현실적으로 POST기반으로 모든 요청을 구성하면 된다
-- 보안 문제로 이미 다수의 서비스가 POST만 허용한다
+- method는 다양하게 있지만 POST기반으로 모든 요청을 구성하면 되는 영역도 있다고 한다
+    - 해당 영역에선 보안 문제로 다수의 서비스가 POST 요청만 통과시킨다고 한다
+- RESTful api를 통해 GET POST PUT PATCH DELETE까지는 자주 사용된다
+    - 물론 GET POST 외의 다른건 실무적으로 복잡한 케이스를 포함하지 못해 자주 사용되지는 않는다고 한다
+    - 심지어 GET은 body가 허용되어있지 않고 길이 제한도 있어 요청할 때도 data를 전송해야하는경우 사용이 불가하다고 한다
 - 멱등성을 보장하는 method는 GET, PUT, DELETE, HEAD, OPTIONS뿐이다
     - POST 자체로는 멱등성이 보장되지 않기 때문에 멱등성 키를 따로 사용해 보장하기 위한 노력을 해야한다
 
@@ -397,7 +419,58 @@ Content-Type: text/html
         - 3xx : redirection
         - 4xx : client errors
         - 5xx : server errors
-    - 상세한 코드가 존재하지만 00으로 통일하여 불필요하게 자세한 정보를 제공하는것은 피해야한다
+    - 상세한 코드가 존재하지만 사용자의 UI에서는 00으로 통일하여 불필요하게 자세한 정보를 제공하는것은 피해야한다
+    - client는 몰라야하지만 frontend에서 필요한 status code는 전달되어야한다
+        - 401, 402, 403등의 frontend와 backend가 작업을 진행해야하는 케이스가 있다
+        - 이 때에도 client의 error UI에선 400으로만 표기되어야만한다
+
+- [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
+    - method, status code, fields를 포함하는 HTTP message에 대한 최신 표준이다
+    - 그렇다 http header는 이제 없다 fields로 대체되었다
+    - [HTTP headers](#HTTP-headers) 열심히 정리했는데....?
+
+## HTTP fields
+
+- `Headers` 대신 `Fields`(`Header Fields` + `Trailer Fields`)로 변경되었다
+    - [Message Abstraction - RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110#section-6)
+    - chunked 전송 등에서 본문 맨 뒤에 붙는 `Trailer`도 `Key: Value` 형태를 쓰고 위치상 당연히 header가 아니기 때문에 두 영역을 포괄하는 표현으로 변경되었다
+        - trailer field의 대표적인 요소로 here_doc의 EOF같은 역할을 하는 Content-MD5가 있다
+            - 이때 header field에 `Trailer: Content-MD5`를 명시해둬야한다
+            - trailer field의 Content-MD5의 value로는 체크섬을 위한 값이 사용할 수 있다
+    - HTTP/1.1과 달리 HTTP/2, HTTP/3부터는 텍스트 기반의 Header Line이 아니라 이진 프레임 내부의 data field 형태로 압축 전송되어 fields가 더 적합한 표현이 되었다
+
+### Header fields, Trailer fields
+
+- [RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110)
+    - 과거 RFC 2616의 4가지 분류 대신 역할(컨텍스트)에 따라 분류한다
+    - 하나의 섹션에 정리되어있지 않고 다양한 섹션에 걸쳐 그 상황에서 필요한 헤더의 예시를 표현하는 방식으로 서술되어 있다
+
+
+### fields의 유효 거리
+
+- hop by hop
+    - next proxy까지만 유효한 fields
+    - proxy에게 특정한 동작을 요구한다
+    - [RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110#section-7.6.1)에 정의된 목록
+        1. Connection
+        2. Keep-Alive
+        3. Proxy-Authenticate
+        4. Proxy-Authorization
+        5. Trailer
+        6. TE
+        7. Transfer-Encoding (예: chunked)
+        8. Upgrade (웹소켓 전환용)
+            - nginx에선 웹소켓을 허용하기 위해 두 줄을 명시해줘야한다
+                - `proxy_set_header Upgrade "$http_upgrade"`
+                - `proxy_set_header Connection "upgrade"`
+
+- end to end
+    - 처음부터 끝까지 유효한 fields
+    - hop by hop이 아닌 모든 fields가 해당됨
+
+---
+
+# expired.....
 
 ## HTTP headers
 
@@ -417,10 +490,7 @@ Content-Type: text/html
     4. Entity Header (RFC2616#7.1)
         - message body를 가지는 request와 response 모두 사용되는 header
 
-
-
-
-### header의 유효 거리
+### headers의 유효 거리
 
 - hop by hop
     - next proxy까지만 유효한 header
@@ -434,11 +504,13 @@ Content-Type: text/html
         6. TE
         7. Transfer-Encoding (예: chunked)
         8. Upgrade (웹소켓 전환용)
+            - nginx에선 웹소켓을 허용하기 위해 두 줄을 명시해줘야한다
+                - `proxy_set_header Upgrade "$http_upgrade"`
+                - `proxy_set_header Connection "upgrade"`
 
 - end to end
     - 처음부터 끝까지 유효한 header
     - hop by hop header가 아닌 모든 헤더가 해당됨
-
 
 ---
 
@@ -449,12 +521,14 @@ Content-Type: text/html
 
 
 - CA-certificate
-    - DNS 과정에서 신뢰할 수 있는 최상위 인증 기관들의 Root CA public key의 목록을 제공해주는 프로그램
-    - package manager를 통해 cli환경에서의 명령어(프로그램)을 설치한다면 항상 보이고 주기적으로 업데이트된다
+    - TLS Handshake 과정에서 신뢰할 수 있는 최상위 인증 기관들의 Root CA public key의 목록을 제공해주는 데이터 패키지
+    - package manager를 통해 cli환경에서의 명령어(프로그램 등의 패키지)을 설치한다면 항상 보이고 주기적으로 업데이트된다
 
 - openssl
     - 단순히 암복호화 연산을 해주는 c 프로그램
-    - ssh에서 ssh-keygen이나 암호화, 복호화는 여기에 맡긴다
+    - ssh에서 ssh-keygen이나 암호화, 복호화는 여기에 맡겼다
+    - 범용 암호화 라이브러리인 libcrypto, libssl를 기반으로 만들어졌다
+        - 최신 OpenSSH는 LibreSSL의 자체 내장 암호화 코드를 쓰거나 OpenSSL의 libcrypto를 링크해서 사용한다
 
 - letsencrypt
     - 무료 공인 인증 기관
@@ -559,6 +633,8 @@ BASE64URL(JWS Signature)
 - signature
     - header와 payload를 Base64URL 인코딩 후 구분자 '.'으로 연결한 뒤 secret key로 sign한 값
     - Sign할 때 쓴 key는 서버에만 존재하므로 같은 결과가 나왔는지 확인해 정상적으로 발급된 토큰인지 확인한다
+        - 인증, 인가 서버가 동일한 환경에서 대칭키로 HS256 이상을 사용해야한다 (4byte같은거 쓰다 털린 서버도 있다고 한다...)
+        - 단, 인증(발급)과 인가(검증) 서버가 분리된 환경의 경우 대칭키가 아닌 RS256, ES256 등의 비대칭키를 사용하여 인증(발급) 서버에서 private key, 인가(검증) 서버에서 public key를 가져야한다
 - 세 영역은 '.'을 구분자로 사용한다
     - Base64URL(header).Base64URL(payload).Base64URL(signature(Base64URL(header).Base64URL(payload), key))
 - 암호화되어있지 않음
