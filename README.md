@@ -111,6 +111,7 @@
             - application.yml에서 dbms 정보를 설정
         - mariadb driver
     - build
+        - spring boot 4.x.x 이상의 release
         - JAVA 21 이상
         - gradle kotlin
 
@@ -212,7 +213,9 @@ entity
 
 > 기본적으로 http api는 자유롭게 작성 가능하지만 대부분의 기업이 OAuth 2.0을 기반으로 JWT를 사용한 통신을 허용하기때문에 우리가 만드는 서비스도 같은 규격을 사용하도록 하는 것이 좋다
 
-### JWT가 발급된 상태에서 RESTful api 기반 통신
+### JWT가 발급된 상태에서 RESTful api 기반 등의 통신 예시
+
+- JWT를 가진 유저의 POST
 
 ```http request (POST)
 POST [URL의 PATH] HTTP/1.1
@@ -230,17 +233,30 @@ Content-Type: application/json
 { "key": "value", ... }([Domain][SubAction]ResponseDto)
 ```
 
+- JWT를 가진 유저의 GET으로 정적 파일을 가져갈 때의 형태
+
 ```http request (GET)
 GET [URL의 PATH] HTTP/1.1
 Host: [URL의 HOST(:PORT)]
 Authorization: Bearer [JWT]
 ```
 
+nginx에서 정적 파일을 반환할 때의 응답 예시
+
 ```http response (GET)
 HTTP/1.1 200 OK
 Content-Type: text/html
 
 <!DOCTYPE html><html><head>...</head><body>...</body></html>
+```
+
+정적 파일이 아니라 api 요청일 때의 응답 예시
+
+```http response (GET)
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "key": "value", ... }([Domain][SubAction]ResponseDto)
 ```
 
 ### OAuth 2.0
@@ -351,6 +367,8 @@ Content-Type: application/json
 ### 42서울 수료
 
 - inception, 트센 기반의 웹 아키텍처 이해도가 있음
+
+- 42에서 peer-evaluation 준비하듯 내가 할 수 있는 선에서 최대한 상세한 설명을 할 수 있는 기반을 만들어버리는 중...
 
 ### ??
 
