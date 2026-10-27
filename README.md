@@ -8,7 +8,6 @@
 - 결정된 tech를 기반으로 gitignore 제작
     - [gitignore.io](https://www.toptal.com/developers/gitignore)
 
-
 - backend tool 추가
     - 활용 가능한 api document service
         - swagger
@@ -58,6 +57,8 @@
 
 - ssl은 더이상 사용하면 안된다. tls에서도 v1.2, v1.3을 써야한다
     - [지원 중지 권고](#TLS)
+
+- zero-copy를 통해 정적 파일을 유저모드에서의 메모리를 건너뛰고 커널모드에서 전송할 수 있다
 
 #### 인증서 관리
 - ca_certificate
@@ -186,6 +187,7 @@ entity
 - user table 구현
     - UUID와 auto increment를 모두 사용해야하나?
         - 내부적으로는 indexing하기 좋은 auto increment인 정수를 사용하는것이 좋고 외부에 공개하는 유저 식별자는 UUID로 하는것이 좋다
+        - RESTful api를 지향한다면 UUID를 resource-id로 사용하게 된다
     - 어떤 값이 PK가 되어야하는가
         - 어차피 키를 하나만 쓸것도 아니라 제 3의 값도 테이블 구성에 따라 키가 될 수 있는거라 유저서비스를 위한 정보가 어떻게 구성될지가 중요할 듯 하다
         - 중복 안되는 정보가 한두개가 아니다
@@ -208,7 +210,9 @@ entity
 
 ## HTTP api with JSON
 
-### JWT가 발급된 상태에서의 통신
+> 기본적으로 http api는 자유롭게 작성 가능하지만 대부분의 기업이 OAuth 2.0을 기반으로 JWT를 사용한 통신을 허용하기때문에 우리가 만드는 서비스도 같은 규격을 사용하도록 하는 것이 좋다
+
+### JWT가 발급된 상태에서 RESTful api 기반 통신
 
 ```http request (POST)
 POST [URL의 PATH] HTTP/1.1
@@ -225,6 +229,42 @@ Content-Type: application/json
 
 { "key": "value", ... }([Domain][SubAction]ResponseDto)
 ```
+
+```http request (GET)
+GET [URL의 PATH] HTTP/1.1
+Host: [URL의 HOST(:PORT)]
+Authorization: Bearer [JWT]
+```
+
+```http response (GET)
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<!DOCTYPE html><html><head>...</head><body>...</body></html>
+```
+
+### OAuth 2.0
+
+- 예시
+
+```md
+Authorization: AuthType Token
+Content-Type: application/json
+
+{ "key" : "value", ...}
+```
+
+- [OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749)에서 정의되었다
+
+- header fields 중 `Content-Type: application/json`을 통해 body를 json형태로 사용할 수 있다는 부분을 활용했다
+
+
+- http request의 header fields의 Authorization에서 유저 인증 방식을 다루게 된다
+    - JWT는 [Bearer token](https://www.rfc-editor.org/rfc/rfc6750)의 한 종류이다
+        - 해당 RFC문서에서 `Authorization: AuthType Token`형태로 정의했다
+        - [RFC6749]에서도 JWT이야기가 없는 이유는 단순이 저 시기에 아직 정의되지 않아서이다
+            - 그래서 access token이 임의의 난수로 정의되어있다
+
 
 ### RESTful API
 
@@ -250,10 +290,11 @@ Content-Type: application/json
 - profile page
     - profile update page
 
-## 우리 서버의 api 구현에 대하여
-- 쿠키와 세션
-- JWT와 REDIS
+### SPA / MPA
 
+- 
+
+- css, js library는 서버에 직접 저장하고 전송하게 할 수도, cdn을 통해 가져오게 할 수도 있다
 
 ## deployment 
 
@@ -424,12 +465,16 @@ Content-Type: text/html
 - 정말 자세히 알고싶다면 webserv를 검색해서 많은 정보를 알아낼 수 있다
 - HTTP/1.1 버전의 nginx의 config와 유사한 컨피그 파일을 읽어 동작해야하는 웹 서버를 만들어보는 ecole42 5서클의 프로젝트이다
 
-- method는 다양하게 있지만 POST기반으로 모든 요청을 구성하면 되는 영역도 있다고 한다
-    - 해당 영역에선 보안 문제로 다수의 서비스가 POST 요청만 통과시킨다고 한다
-- RESTful api를 통해 GET POST PUT PATCH DELETE까지는 자주 사용된다
+- [http method - RFC 9110](https://www.rfc-editor.org/info/rfc9110/#section-9)
+- [IANA](https://www.iana.org/assignments/http-methods)
+
+- method는 다양하게 있지만 서버에서 MUST로 지원해야하는 것은 GET과 HEAD뿐이고 나머지는 optional하다
+    - 특정 서비스 영역에선 보안 문제로 다수의 서비스가 POST 요청만 통과시킨다고 한다
+
+- RESTful api를 통해 GET POST PUT DELETE까지는 자주 사용된다
     - 물론 GET POST 외의 다른건 실무적으로 복잡한 케이스를 포함하지 못해 자주 사용되지는 않는다고 한다
     - 심지어 GET은 body가 허용되어있지 않고 길이 제한도 있어 요청할 때도 data를 전송해야하는경우 사용이 불가하다고 한다
-- 멱등성을 보장하는 method는 GET, PUT, DELETE, HEAD, OPTIONS뿐이다
+- 멱등성을 보장하는 method는 GET, PUT, DELETE, HEAD, OPTIONS 등이 있다
     - POST 자체로는 멱등성이 보장되지 않기 때문에 멱등성 키를 따로 사용해 보장하기 위한 노력을 해야한다
 
 
@@ -442,8 +487,8 @@ Content-Type: text/html
         - 5xx : server errors
     - 상세한 코드가 존재하지만 사용자의 UI에서는 00으로 통일하여 불필요하게 자세한 정보를 제공하는것은 피해야한다
     - client는 몰라야하지만 frontend에서 필요한 status code는 전달되어야한다
-        - 401, 403, 404등의 frontend와 backend가 작업을 진행해야하는 케이스가 있다
-        - 이 때에도 client의 error UI에선 400으로만 표기되어야만한다
+        - 401, 403, 404등의 frontend에서 backend에게 추가적인 작업을 요청하거나 해당 상태에 따라 다르게 동작해야하는 경우가 있다
+        - 보안을 위해 client의 error UI에선 한가지로만 표기되어야만한다
 
 - [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
     - method, status code, fields를 포함하는 HTTP message에 대한 최신 표준이다
@@ -455,9 +500,10 @@ Content-Type: text/html
 - `Headers` 대신 `Fields`(`Header Fields` + `Trailer Fields`)로 변경되었다
     - [Message Abstraction - RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110#section-6)
     - chunked 전송 등에서 본문 맨 뒤에 붙는 `Trailer`도 `Key: Value` 형태를 쓰고 위치상 당연히 header가 아니기 때문에 두 영역을 포괄하는 표현으로 변경되었다
-        - trailer field의 대표적인 요소로 here_doc의 EOF같은 역할을 하는 Content-MD5가 있다
-            - 이때 header field에 `Trailer: Content-MD5`를 명시해둬야한다
-            - trailer field의 Content-MD5의 value로는 체크섬을 위한 값이 사용할 수 있다
+        - trailer field의 대표적인 요소로 here_doc의 EOF같은 역할을 하는 Content-Digest가 있다
+            - 이때 header field에 `Trailer: Content-Digest`를 명시해둬야한다
+            - trailer field의 Content-Digest의 value로는 체크섬을 위한 값이 사용할 수 있다
+            - Content-Digest는 Content-MD5를 대체했다 (RFC 9530에서 대체됨)
     - HTTP/1.1과 달리 HTTP/2, HTTP/3부터는 텍스트 기반의 Header Line이 아니라 이진 프레임 내부의 data field 형태로 압축 전송되어 fields가 더 적합한 표현이 되었다
 
 ### Header fields, Trailer fields
@@ -611,6 +657,7 @@ Content-Type: text/html
     - `JWE`는 Base64URL 인코딩만 되어있는 `JWS`와 달리 메세지 전체가 암호화(encryption)되어있다
     - 어떤 값도 넣을 수 있기때문에 중첩 토큰(`Nested JWT`)이 가능하며 엄밀하게 따지자면 JWT는 명확하게 두 영역으로 나뉘지 않는다
 - JWS에서는 header, payload, signature로 JWE에서는 header, encrypted_key, iv, ciphertext, tag로 구성되며 JWS에서의 header의 alg, JWE에서의 header의 alg, enc만이 필수(MUST)이고 이 외의 모든 claim은 optional하다
+- http api에서 request에서 header fields의 영역에서 `Authorization: Bearer [JWT]` 와 같은 형태로 전달된다
 
 ```javascript
 // JWE
