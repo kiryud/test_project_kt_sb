@@ -189,6 +189,7 @@ entity
     - UUID와 auto increment를 모두 사용해야하나?
         - 내부적으로는 indexing하기 좋은 auto increment인 정수를 사용하는것이 좋고 외부에 공개하는 유저 식별자는 UUID로 하는것이 좋다
         - RESTful api를 지향한다면 UUID를 resource-id로 사용하게 된다
+        # `TODO` UUID v7 정리하기 - 앞자리가 timestamp라서 생성 기준 ordering 되어있음
     - 어떤 값이 PK가 되어야하는가
         - 어차피 키를 하나만 쓸것도 아니라 제 3의 값도 테이블 구성에 따라 키가 될 수 있는거라 유저서비스를 위한 정보가 어떻게 구성될지가 중요할 듯 하다
         - 중복 안되는 정보가 한두개가 아니다
@@ -202,6 +203,7 @@ entity
 - [`JWT`](#json-web-token) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
         - refresh token을 user에게 제공하지 않는 것이 권장된다
+        # `TODO` RTR 정리하기 - 이름만 보면 사용시 재발급임
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
     - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
         - `Authorization: Bearer JWT`의 형태로 `Bearer `뒤에 이어붙인다
@@ -211,9 +213,25 @@ entity
 
 ## HTTP api with JSON
 
-> 기본적으로 http api는 자유롭게 작성 가능하지만 대부분의 기업이 OAuth 2.0을 기반으로 JWT를 사용한 통신을 허용하기때문에 우리가 만드는 서비스도 같은 규격을 사용하도록 하는 것이 좋다
+> 기본적으로 http api는 대부분의 영역을 optional하게 정의해서 이론적으로는 자유롭게 작성 가능하지만 대부분의 기업이 OAuth 2.0을 기반으로 JWT를 사용한 통신을 허용하기때문에 우리가 만드는 서비스도 같은 규격을 사용하도록 하는 것이 좋다
 
-### JWT가 발급된 상태에서 RESTful api 기반 등의 통신 예시
+# `TODO` - current working
+
+### user, auth service에서의 JWT 발급 및 활용
+
+> 로그인 한 우리 유저인지 아닌지 그때그때 판별하기 위한 도구
+
+- 로그인을 성공한 경우 발급
+    - 로그인 시도시 id와 pw를 받아 검증
+        - 소셜 로그인의 경우 OAuth 2.0을 기반으로 주어진 정보를 타 서비스에 보내 검증
+    - 헤더에서 `Content-Type: application/json`로 지정 후 JSON 형태의 body로 전달
+        - 이 때 access token은 당연히 필수적으로 전달해야하지만 refresh token은 서버에서 관리하는 것이 좋다
+            - 애초에 stateless라는 속성은 편리함만을 목적으로 한 도구이고 당연히 보안에 좋지 못하다
+- 발급 이후 header에서 `Authorization: Bearer JWT`의 형태로 전달되어야함
+
+# `TODO` - JWT의 발급시 해야하는 동작에 대하여 이 지점에서 상세하게 작성할 것. 
+
+#### JWT가 발급된 상태에서 RESTful api 기반 등의 통신 예시
 
 - JWT를 가진 유저의 POST
 
@@ -285,7 +303,7 @@ Content-Type: application/json
 ### RESTful API
 
 - https://[IP_ADDRESS]/domain/{resource-id}/sub-action
-    - action은 기본적으로 `GET` `POST` `PUT` `DELETE`의 `http method`를 기반으로 표현한다
+    - action은 기본적으로 RFC를 기반으로 한 http method를 사용한다
     - https는 nginx에서 tls 해석 후 http로 reverse proxy 처리하거나 spring security가 직접 처리
         - nginx를 사용할 땐 spring security에서 http를 거부하지 않게 설정해줘야한다 (default로는 허용한다)
         - nginx에서 https를 검증해 http를 넘길 때 `X-Forwarded-*` 헤더를 통해 https기반의 요청임을 spring에게 알릴 수 있고 spring은 인식할 수 있게 설정해줘야 redirect를 `https://`로 생성한다
@@ -298,7 +316,6 @@ Content-Type: application/json
     - sub-action은 특정된 자원을 기반으로 하는 행위를 말한다
         - 해당 domain의 정보 중 일부를 활용하는 경우가 대표적이다
 
-
 ## frontend page?
 
 - login page
@@ -308,17 +325,21 @@ Content-Type: application/json
 
 ### SPA / MPA
 
-- 
+- SPA가 항상 답인건 아닌데 그렇다고 모든 페이지가 쪼개인 MPA가 쓸만한 서비스인건 아니다
+    - index.html, css, router.js등의 기본적인 첫 페이지의 구성요소만 미리 보내두고 페이지 이동시 js파일을 요청해 구성하는 방법도 고려해봤는데 결국 html 리소스를 전송하되 그 내용이 js에 적혀있을 뿐이었다
 
 - css, js library는 서버에 직접 저장하고 전송하게 할 수도, cdn을 통해 가져오게 할 수도 있다
 
 ## deployment 
 
+> 기기 내에서 브라우저를 통해 접속하는건 `/etc/hosts`에 사용할 주소가 127.0.0.1을 바라보도록 하면 된다.
+> 로컬 네트워크에선 ip가 필요하고 도움 안되는거라 자주 쓰는건 아니다.
+
 ### CICD
 
 - CI
-    - 별게 없다 깃허브같은 code managing service를 사용해서 source code를 관리하여 여러 사람이 지속적으로 협업하여 개발할 수 있으면 된다
-    - 심지어 원시적인 방법인 소스코드의 직접 전달마저도 규정이 있다면 CI가 가능하다고 해도 될 정도로 엄격하지 않은 개념이다
+    - 별게 없다 깃허브같은 code managing service를 사용해서 source code를 관리하는 상태에서 action을 통해 여러 사람이 지속적으로 협업하여 개발할 수 있으면 된다.
+    - github action을 통해 임의의 환경에서 정상적으로 켜지는지 테스트해서 넘기게 하면 편하다. (켜지는지 아닌지와 미리 설정된 테스트를 기반으로 검사하는거지 모든 동작에 오류가 있는지 아닌지를 검사하는 단계가 아니다)
 
 
 - CD
@@ -369,6 +390,7 @@ Content-Type: application/json
 - inception, 트센 기반의 웹 아키텍처 이해도가 있음
 
 - 42에서 peer-evaluation 준비하듯 내가 할 수 있는 선에서 최대한 상세한 설명을 할 수 있는 기반을 만들어버리는 중...
+    - well known standard만 사용할거면 신입을 왜 씀? 검증할 수 있는 사람이 필요한거지
 
 ### ??
 
@@ -492,11 +514,12 @@ Content-Type: text/html
 - RESTful api를 통해 GET POST PUT DELETE까지는 자주 사용된다
     - 물론 GET POST 외의 다른건 실무적으로 복잡한 케이스를 포함하지 못해 자주 사용되지는 않는다고 한다
     - 심지어 GET은 body가 허용되어있지 않고 길이 제한도 있어 요청할 때도 data를 전송해야하는경우 사용이 불가하다고 한다
-- 멱등성을 보장하는 method는 GET, PUT, DELETE, HEAD, OPTIONS 등이 있다
+
+- 멱등성을 보장하는 method는 GET, HEAD, PUT, DELETE, OPTIONS 등이 있다
     - POST 자체로는 멱등성이 보장되지 않기 때문에 멱등성 키를 따로 사용해 보장하기 위한 노력을 해야한다
 
-
 - [status code](https://developer.mozilla.org/ko/docs/Web/HTTP/Reference/Status) 3자리 정수로 구성된다
+    - [RFC 2616 -10](https://www.rfc-editor.org/info/rfc2616/#section-10)
     - 분류
         - 1xx : informational responses
         - 2xx : success
@@ -511,7 +534,7 @@ Content-Type: text/html
 - [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
     - method, status code, fields를 포함하는 HTTP message에 대한 최신 표준이다
     - 그렇다 http header는 이제 없다 fields로 대체되었다
-    - [HTTP headers](#HTTP-headers) 열심히 정리했는데....?
+        - [HTTP headers](#HTTP-headers) 열심히 정리했는데....?
 
 ## HTTP fields
 
