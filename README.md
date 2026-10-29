@@ -94,6 +94,10 @@
 - init.sql을 통해 데이터베이스, 테이블 생성 및 초기화
 
 ### spring boot (kotlin)
+
+> 버전은 설계 완성 후 프로젝트 시작시 제대로 고정할 예정
+> 당장은 특정 버전을 사용해야하는 이유에 대한 고민이 존재하지 않는 상태이다
+
 - [Spring Initializr](https://start.spring.io/)를 활용한 프로젝트 생성
     - dependencies
         - spring web
@@ -186,24 +190,30 @@ entity
 #### user service 구현
 - user service의 기능 정리
 - user table 구현
+    - [UUID](#uuid)
     - UUID와 auto increment를 모두 사용해야하나?
         - 내부적으로는 indexing하기 좋은 auto increment인 정수를 사용하는것이 좋고 외부에 공개하는 유저 식별자는 UUID로 하는것이 좋다
         - RESTful api를 지향한다면 UUID를 resource-id로 사용하게 된다
-        # `TODO` UUID v7 정리하기 - 앞자리가 timestamp라서 생성 기준 ordering 되어있음
+            - UUIDv7는 첫 영역이 timestamp라서 등록 순서대로 정렬된다
+                - B+Tree기반의 index에 굉장히 좋다
+                - 해당 UUID의 생성 일시가 그대로 노출된다
+                - UUID만으로 indexing이 되어 auto increment가 불필요해 보이지만 이 때에도 sequence의 역할을 해줄 수 있다
+                    - timestamp는 발급 당시 기기의 설정에 종속되어있다
+            - UUIDv4는 임의의 난수로서 예측이 불가능하다 (굉장히 낮은 확률로 겹칠 수는 있다)
+                - 이 때 내부 index로 auto increment인 정수를 사용하면 좋다 
     - 어떤 값이 PK가 되어야하는가
         - 어차피 키를 하나만 쓸것도 아니라 제 3의 값도 테이블 구성에 따라 키가 될 수 있는거라 유저서비스를 위한 정보가 어떻게 구성될지가 중요할 듯 하다
         - 중복 안되는 정보가 한두개가 아니다
     - 어떤 정보를 가져야하나
         - login(signin), signup page에서 받을 정보
             - 개인정보 정책과 연동되는 부분
-            - 비밀번호는 반드시 해시로 저장되어야한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
-
+            - 비밀번호는 반드시 해시로 저장되어야 한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
 
 #### auth service 구현
 - [`JWT`](#json-web-token) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
         - refresh token을 user에게 제공하지 않는 것이 권장된다
-        # `TODO` RTR 정리하기 - 이름만 보면 사용시 재발급임
+            - 서버에서 통제권을 가질 필요가 없는 서비스는 일반적으로 존재하지 않는다고 봐도 과언이 아니다
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
     - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
         - `Authorization: Bearer JWT`의 형태로 `Bearer `뒤에 이어붙인다
@@ -215,7 +225,6 @@ entity
 
 > 기본적으로 http api는 대부분의 영역을 optional하게 정의해서 이론적으로는 자유롭게 작성 가능하지만 대부분의 기업이 OAuth 2.0을 기반으로 JWT를 사용한 통신을 허용하기때문에 우리가 만드는 서비스도 같은 규격을 사용하도록 하는 것이 좋다
 
-# `TODO` - current working
 
 ### user, auth service에서의 JWT 발급 및 활용
 
@@ -229,7 +238,15 @@ entity
             - 애초에 stateless라는 속성은 편리함만을 목적으로 한 도구이고 당연히 보안에 좋지 못하다
 - 발급 이후 header에서 `Authorization: Bearer JWT`의 형태로 전달되어야함
 
-# `TODO` - JWT의 발급시 해야하는 동작에 대하여 이 지점에서 상세하게 작성할 것. 
+- access token과 refresh token은 JWT의 내용물
+
+- ? JWT이나 세션에서 유저 서비스에 대한 인증 및 지속 정책에 대하여 어떤 기준으로 설계해야만 하는가?
+    - 어떤 정책이 있는지부터 제대로 알아야하는 시점이 됨
+    1. 정책을 어디서 찾는가
+    2. 어떤 기준으로 판별해야하나
+    3. 어떤 방식으로 구현되는가
+
+#### JWT의 발급과 내부동작
 
 #### JWT가 발급된 상태에서 RESTful api 기반 등의 통신 예시
 
@@ -418,6 +435,12 @@ Content-Type: application/json
 
 - TDD 기반으로 의사코드 - 테스트코드 - 개발 순서
 
+- 과정 검증을 위한 지식 정리 이후 컨벤션 및 제약 정의 후 llm을 통한 개발 예정
+    - 이 때 최대한 적은 횟수의 지시를 하되 내가 적은 문서의 설계가 잘 전달되는지 (내가 맥락을 부족하게 적은게 없는지) 검증할 예정
+- 하네스 엔지니어링 적용을 위한 추가 학습 예정
+    - CICD 자동화가 된 상태에서 지속적으로 업데이트 - 즉시배포가 가능한지 확인할 예정
+        - 지인분의 llm기반 모바일 대상 웹 게임이 미니게임을 잔뜩 추가중인데 변경점, 추가시 자동으로 업데이트 알림이 나오고 새로고침 유도하는거 보고 관련된 내용을 나도 사용 가능하게 재가공 해볼 예정
+
 ---
 
 ## Domain
@@ -445,6 +468,89 @@ Content-Type: application/json
 
 #### 주의
 - 해당 서비스가 obsidian vault의 정보에 접근해 바로 사용하는지, 읽고 정리하여 db에 저장 후 동작하며 웹에서의 기록을 저장할 때 vault에 문서화 할지, 출력을 요청받지 않는 상황이라면 db에 정보를 저장만 하고 있을지 결정된 부분 없음. 세 가지 동작 이외의 경우도 있을 수 있음
+
+---
+
+# UUID
+
+## UUIDs
+
+- 범용 고유 식별자
+    - 16byte(128bit)의 정수
+    - 4-2-2-2-6의 형태로 표기한다
+        - hexadecimal string으로는 8-4-4-4-12의 형태
+    - 일반적인 네트워크 프로토콜을 통해 전송될 값 답게 빅 엔디안을 사용한다
+        - 단, 마이크로소프트의 COM GUID는 부분적으로 리틀 엔디안을 사용한다고 한다
+
+- hexadecimal로 입력받을 때 대소문자를 구분하지 않아야 한다
+    - 정작 생성시 SHOULD use lower case 이다
+
+- UUID 자체의 정보인 변형, 버전 필드는 시작 위치와 값이 정해져 있다
+    - 단, Nil UUID(0), Max UUID(1)의 두 경우는 예외이다
+    - 구분자 '-'으로 나눠진 5개의 영역 중 3, 4번째 영역의 왼쪽에서 시작한다
+        - Variant Field : 4번째 영역의 첫 hexadecimal
+            - 0 ~ 7 [0xxx] : NCS 하위 호환성을 위한 변형 필드 (Nil UUID 포함)
+            - 8 ~ b [10xx] : RFC 9562에서 정의하는 표준 UUID 변형 필드
+            - c ~ d [110x] : MS의 변형 필드
+            - e ~ f [111x] : 향후 정의를 위해 예약된 영역 (Max UUID 포함)
+        - Version Field : 3번째 영역의 첫 hexadecimal
+            - 각 variant마다 다른 방식을 사용한다
+            - Variant Field가 8 ~ b [10xx]일 때
+                - 0     : Unused
+                - 1 ~ 8 : 각 버전
+                - 9 ~ f : 향후 정의를 위해 예약된 영역
+
+## UUID Layouts
+
+> 버전만 잘 선택하면 다 알아서 만들어주는 라이브러리가 있다
+> 근데 어떤 버전을 사용할지에 대한 트레이드오프 고민하려면 일단 알긴 해야함
+
+- 내부 구성이 궁금하면 이쪽으로 -> [아르곤 시켜서 정리된 버전](#uuid_argon)
+    - 직접 서식 만들고 RFC의 표까지 만들었는데 1, 2버전 정리해보니 어차피 안 다룰 상세 내용들이라 제미나이 아르곤에게 원문과 내 서식 둘 다 줘서 정리시킴
+
+## UUID versions
+
+> 중요한 것만 빠르게 정리하자
+
+- 완전 난수 : v4
+- timestamp 기반 : v1 -> v6 -> v7
+- namespace hash 기반 : v3 (MD5) -> v5 (SHA-1)
+- DCE Security : v2
+- custom : v8
+
+- 여기서 v4, v7 중 하나를 사용하는 것이 일반적이며 정렬이 필요하다면 v7을 사용 가능하지만 누구나 일시를 확인 가능하다는 단점이 있다
+    - 물론 다른 버전을 쓰지 말라는게 아니다
+
+
+## UUID Reference
+
+- [UUIDs - RFC9562](https://www.rfc-editor.org/info/rfc9562)
+
+- UUID의 format은 ABNF를 따른다
+    - [ABNF - RFC5234](https://www.rfc-editor.org/info/rfc5234)
+    ```
+    UUID     = 4hexOctet "-"
+           2hexOctet "-"
+           2hexOctet "-"
+           2hexOctet "-"
+           6hexOctet
+    hexOctet = HEXDIG HEXDIG
+    DIGIT    = %x30-39
+    HEXDIG   = DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
+    ```
+
+- [IANA UUID Subtype Registry and Registration](https://www.rfc-editor.org/info/rfc9562/#section-7.1)
+
+|Name | ID | Subtype | Variant | Reference|
+|---|---|---|---|---|
+|Gregorian Time-based|1|version|OSF DCE / IETF|[RFC4122], [RFC9562]|
+|DCE Security|2|version|OSF DCE / IETF|[C309], [C311]|
+|MD5 Name-based|3|version|OSF DCE / IETF|[RFC4122], [RFC9562]|
+|Random|4|version|OSF DCE / IETF|[RFC4122], [RFC9562]|
+|SHA-1 Name-based|5|version|OSF DCE / IETF|[RFC4122], [RFC9562]|
+|Reordered Gregorian Time-based|6|version|OSF DCE / IETF|[RFC9562]|
+|Unix Time-based|7|version|OSF DCE / IETF|[RFC9562]|
+|Custom|8|version|OSF DCE / IETF|[RFC9562]|
 
 ---
 
@@ -960,3 +1066,254 @@ jwt_token = `${jwt_encode_header}.${jwt_encode_payload}.${jwt_encode_signature}`
 - Specification Document(s): Section 4.1.7 of RFC 7519
 
 ```
+
+
+# uuid_argon
+
+## UUID Layouts
+
+> 버전만 잘 선택하면 다 알아서 만들어주는 라이브러리가 있다
+> 근데 어떤 버전을 사용할지에 대한 트레이드오프 고민하려면 일단 알긴 해야함
+
+- 공통
+    - ver : version (4bit, bits 48~51, octet 6 상위)
+    - var : variant (2bit, bits 64~65, octet 8 상위 / 0b10 고정)
+
+### UUIDv1
+
+- UTC를 기반으로 100ns 간격으로 증가하는 60bit timestamp (1582-10-15 00:00:00.00 기준)
+    - UTC를 사용할 수 없는 시스템은 일관되게 로컬 시간을 사용할 수 있으나 비권장 (타임존 오프셋만 있으면 UTC 생성 가능)
+- 하위 비트(time_low)가 가장 앞에 배치되어 시간순 정렬이 불가능함
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           time_low                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|           time_mid            |  ver  |       time_high       |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|         clock_seq         |             node              |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                              node                             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- time_low
+    - 60bit timestamp의 최하위(LSB) 32bit (bits 0~31, octets 0~3)
+
+- time_mid
+    - 60bit timestamp의 중간 16bit (bits 32~47, octets 4~5)
+
+- time_high
+    - 60bit timestamp의 최상위(MSB) 12bit (bits 52~63, octets 6~7)
+    - 원문에는 least significant로 표기되어 있으나 most significant의 오타
+
+- clock_seq
+    - 클록이 과거로 돌아가거나 Node ID가 변경될 때 발생할 수 있는 중복을 방지하기 위한 14bit 필드 (bits 66~79, octets 8~9)
+    - 시스템 수명 동안 최초 1회 반드시(MUST) Node ID와 무관한 난수로 초기화되어야 함
+    - 시계가 과거로 설정되었거나 Node ID가 변경된 경우 반드시(MUST) 변경해야 함 (이전 값을 알면 1 증가 가능(MAY), 모르면 난수 또는 의사 난수로 설정(SHOULD))
+
+- node
+    - 48bit 공간적 고유 식별자 (bits 80~127, octets 10~15 / IEEE 802 MAC 주소 또는 난수)
+    - 여러 개의 IEEE 802 주소가 있으면 아무거나 사용 가능(MAY)하며, 주소가 없으면 반드시(MUST) 난수/의사 난수 사용
+    - 64bit MAC 주소 사용 시 가장 오른쪽의 최하위 48bit 사용 가능(MAY)
+    - IEEE 802.15.4 16bit 주소 사용 시스템은 64bit MAC 주소의 최하위 48bit를 사용하거나(SHOULD), 16bit MAC 주소 끝에 32bit 난수를 붙여 48bit로 구성
+
+### UUIDv2
+
+- DCE 보안(DCE Security) UUID를 위한 버전 ([C309], [C311] 참조)
+- 본 사양의 정의 범위를 벗어남
+
+### UUIDv3
+
+- 특정 namespace 내에서 고유한 name으로부터 UUID를 생성하기 위한 버전
+- Namespace ID와 name을 해당 네임스페이스 규칙에 따라 네트워크 바이트 순서의 정규화된 옥텟 시퀀스로 변환 후 이어 붙여 MD5 해시(128bit)를 계산하고, ver와 var 비트를 대체함
+- 가능한 경우 UUIDv3 대신 UUIDv5를 사용해야 함(SHOULD)
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                            md5_high                           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          md5_high             |  ver  |       md5_mid         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|                        md5_low                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                            md5_low                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- md5_high
+    - 계산된 MD5 값의 최상위 48bit (bits 0~47, octets 0~5)
+
+- md5_mid
+    - md5_high 직후 이어지는 16bit 중 최하위 12bit (bits 52~63, octets 6~7 / 상위 4bit는 ver로 대체됨)
+
+- md5_low
+    - 계산된 MD5 값의 마지막 64bit 중 최하위 62bit (bits 66~127, octets 8~15 / 상위 2bit는 var로 대체됨)
+
+### UUIDv4
+
+- 완전한 난수(truly random) 또는 의사 난수(pseudorandom)로부터 UUID를 생성하기 위한 버전
+- 128bit 난수를 생성해 채운 뒤 ver와 var 비트를 대체하거나, 필요한 비트 수(총 122bit)만큼만 난수를 생성한 뒤 ver와 var를 필요한 위치에 이어 붙일 수 있음(MAY)
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           random_a                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          random_a             |  ver  |       random_b        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|                       random_c                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           random_c                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- random_a
+    - 무작위 데이터로 채워지는 처음 48bit (bits 0~47, octets 0~5)
+
+- random_b
+    - 무작위 데이터로 채워지는 12bit (bits 52~63, octets 6~7)
+
+- random_c
+    - var 필드 직후 무작위 데이터로 채워지는 마지막 62bit (bits 66~127, octets 8~15)
+
+### UUIDv5
+
+- 특정 namespace 내에서 고유한 name으로부터 UUID를 생성하기 위한 버전
+- Namespace ID와 name을 정규화된 옥텟 시퀀스(네트워크 바이트 순서)로 변환 후 이어 붙여 SHA-1 해시(160bit)를 계산함
+    - 최상위 128bit만 사용하여 레이아웃을 채우고 나머지 최하위 32bit는 버린 뒤, ver와 var 비트를 대체함
+- 보안 정책상 SHA-1을 사용할 수 없어 SHA-256 이상의 방식을 사용하려는 경우, 절대로(MUST NOT) UUIDv5를 사용해서는 안 되며 반드시(MUST) UUIDv8 공간 내에서 구현해야 함
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           sha1_high                           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|         sha1_high             |  ver  |      sha1_mid         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|                       sha1_low                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           sha1_low                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- sha1_high
+    - 계산된 SHA-1 값의 최상위 48bit (bits 0~47, octets 0~5)
+
+- sha1_mid
+    - sha1_high 직후 이어지는 16bit 중 최하위 12bit (bits 52~63, octets 6~7 / 상위 4bit는 ver로 대체됨)
+
+- sha1_low
+    - 남은 SHA-1 해시에서 최상위 2bit(var 자리)를 건너뛴 다음 이어지는 최상위 62bit (bits 66~127, octets 8~15 / 남은 32bit는 버려짐)
+
+### UUIDv6
+
+- DB 지역성(DB locality) 향상을 위해 타임스탬프 바이트가 최상위(MSB)부터 최하위(LSB) 순서로 저장되도록 재정렬한 UUIDv1의 필드 호환 버전
+- 기존 UUIDv1이 사용되는 환경에서 주로 구현될 것으로 예상되며, 레거시 UUIDv1과 관련 없는 시스템은 대신 UUIDv7을 사용해야 함(SHOULD)
+- 새로 생성되는 각 UUIDv6마다 clock_seq와 node 비트를 의사 난수 값으로 재설정해야 하나(SHOULD), 기존 UUIDv1의 클록 시퀀스 및 MAC 주소 동작을 유지할 수도 있음(MAY)
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           time_high                           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|           time_mid            |  ver  |       time_low        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|         clock_seq         |             node              |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                              node                             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- time_high
+    - 60bit timestamp의 최상위(MSB) 32bit (bits 0~31, octets 0~3)
+
+- time_mid
+    - 60bit timestamp의 중간 16bit (bits 32~47, octets 4~5)
+    - time_high와 time_mid의 48bit는 순서가 그대로 유지되므로 두 필드로 분할하는 단계는 선택 사항(OPTIONAL)이며, 기존 UUIDv1 구현체를 재사용할 때 유용함
+
+- time_low
+    - 60bit timestamp의 최하위(LSB) 12bit (bits 52~63, octets 6~7)
+
+- clock_seq
+    - 14bit 클록 시퀀스 (bits 66~79, octets 8~9 / UUIDv1과 위치 동일)
+
+- node
+    - 48bit 공간적 고유 식별자 (bits 80~127, octets 10~15 / UUIDv1과 위치 동일)
+
+### UUIDv7
+
+- Unix Epoch timestamp(윤초를 제외한 1970-01-01 00:00:00 UTC 이후의 밀리초 수)에서 파생된 시간 정렬(time-ordered) 값 필드를 특징으로 하는 버전
+- 일반적으로 UUIDv1이나 UUIDv6보다 향상된 엔트로피 특성을 가지며, 가능한 경우 UUIDv1 및 UUIDv6 대신 UUIDv7을 활용해야 함(SHOULD)
+- 최상위 48bit에 밀리초 단위의 Unix timestamp를 할당하고, ver와 var를 제외한 나머지 74bit를 난수로 채워 생성함
+    - 대안으로 1ms 내에서의 추가적인 단조 증가성(monotonicity)을 보장하기 위해 나머지 74bit를 최상위 비트부터 다음 하위 필드들의 조합으로 채울 수 있음(MAY)
+        1. 서브 밀리초 타임스탬프 소수점 값 (최대 12bit, OPTIONAL)
+        2. 세심하게 시드(seed)가 설정된 카운터 (OPTIONAL)
+        3. 남은 공간에 대해 새로 생성되는 각 UUIDv7마다 채워지는 무작위 데이터
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           unix_ts_ms                          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          unix_ts_ms           |  ver  |       rand_a          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|                        rand_b                             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                            rand_b                             |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- unix_ts_ms
+    - 밀리초 단위의 Unix Epoch timestamp를 나타내는 48bit big-endian 부호 없는 숫자 (bits 0~47, octets 0~5)
+
+- rand_a
+    - 고유성을 제공하기 위한 12bit 의사 난수 데이터 및/또는 추가적인 단조 증가성을 보장하기 위한 선택적 구조체 (bits 52~63, octets 6~7)
+
+- rand_b
+    - 고유성을 제공하기 위한 마지막 62bit 의사 난수 데이터 및/또는 추가적인 단조 증가성을 보장하기 위한 선택적 카운터 (bits 66~127, octets 8~15)
+
+### UUIDv8
+
+- 실험적 목적 또는 벤더 종속적인(vendor-specific) 사용 사례를 위한 포맷
+    - 예: 문서 정의 외의 추가 정보를 UUID에 내장하거나, 애플리케이션/언어 제약으로 기존 UUID를 쓸 수 없는 경우 등
+- ver와 var 비트의 설정만 강제(MUST)하며 나머지 122bit는 구현체가 자유롭게 정의
+- 고유성은 구현에 따라 다르므로 보장된다고 가정해서는 안 되며(MUST NOT), 122bit를 난수로 채우는 UUIDv4의 대체품이 아님
+
+- Bit Layout
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           custom_a                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          custom_a             |  ver  |       custom_b        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|var|                       custom_c                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           custom_c                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+- custom_a
+    - 구현체가 적절하다고 판단하는 대로 채울 수 있는 처음 48bit (bits 0~47, octets 0~5)
+
+- custom_b
+    - 구현체가 적절하다고 판단하는 대로 채울 수 있는 12bit (bits 52~63, octets 6~7)
+
+- custom_c
+    - var 필드 직후 구현체가 적절하다고 판단하는 대로 채울 수 있는 마지막 62bit (bits 66~127, octets 8~15)
