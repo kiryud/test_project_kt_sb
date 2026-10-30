@@ -59,6 +59,19 @@
     - [지원 중지 권고](#TLS)
 
 - zero-copy를 통해 정적 파일을 유저모드에서의 메모리를 건너뛰고 커널모드에서 전송할 수 있다
+    - http에선 잘 되었는데 https부턴 암호화가 강제되어 sendfile이 커널에서 처리되지 못함
+        - 암호화를 유저 모드의 메모리에 복사해서 진행 후 전송해야했음
+    - kTLS(kernel TLS)을 통해 https에서도 최대한 커널모드를 유지할 수 있게 되었다
+        - `ssl_conf_command Options KTLS;`을 명시해 활성화
+        - Linux Kernel 4.13+, OpenSSL 3.0+, nginx의 합작
+            - 이 버전은 TLSv1.2만 지원 가능해서 TLSv1.3을 위해선 Linux Kernel 5.2+ 필요
+            - 사용할 nginx의 이미지에서 각 버전이 어떻게 구성되어있는지 잘 살펴야할 것 같다
+        - TLS handshake만 user mode의 OpenSSL에서 처리하고 session key(대칭키임) Linux kernel socket에게 넘겨줌
+            - 이때 사용 가능한 대칭키 암호화 알고리즘을 명확히 알고 사용해야한다
+        - nginx가 정적 파일을 sendfile할 때 kernel 혹은 network card HW에서 넘겨받은 session key로 암호화
+            - TLS Device Offload를 지원하는 NIC로 kTLS를 활성화 하는 경우 `TLS_TX_ZEROCOPY_RO`라는 커널 내부 복사도 최적화 할 수 있는 옵션이 있다
+                - 물리적인 기기인만큼 어떤 버전의 TLS를 처리할 수 있는지는 쓸 기회가 생길 때 다시 알아보면 될 듯 하다
+        - Linux Kernel의 특정 버전의 이상을 요구하는 부분을 보면 알겠지만 Host의 kernel을 사용하는 container의 경우 Host의 kernel에서 지원하지 않거나 지원하더라도 설정이 되어있지 않는다면 container 내부의 설정만으로는 사용할 수 없다
 
 #### 인증서 관리
 - ca_certificate
