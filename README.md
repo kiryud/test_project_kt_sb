@@ -56,7 +56,7 @@
         - proxy_set_header Accept-Encoding
 
 - ssl은 더이상 사용하면 안된다. tls에서도 v1.2, v1.3을 써야한다
-    - [지원 중지 권고](#TLS)
+    - [지원 중지 권고](#tls)
 
 - zero-copy를 통해 정적 파일을 유저모드에서의 메모리를 건너뛰고 커널모드에서 전송할 수 있다
     - http에선 잘 되었는데 https부턴 암호화가 강제되어 sendfile이 커널에서 처리되지 못함
@@ -203,7 +203,7 @@ entity
 #### user service 구현
 - user service의 기능 정리
 - user table 구현
-    - [UUID](#uuid)
+    - [UUID](#uuid)란?
     - UUID와 auto increment를 모두 사용해야하나?
         - 내부적으로는 indexing하기 좋은 auto increment인 정수를 사용하는것이 좋고 외부에 공개하는 유저 식별자는 UUID로 하는것이 좋다
         - RESTful api를 지향한다면 UUID를 resource-id로 사용하게 된다
@@ -223,126 +223,20 @@ entity
             - 비밀번호는 반드시 해시로 저장되어야 한다 (`BCryptPasswordEncoder` 사용하도록 제어해야함)
 
 #### auth service 구현
+- [`Cookie`](#cookie)란?
 - [`JWT`](#json-web-token) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
+        - 일단 access token은 웹의 스토리지가 아닌 램에서 다룬다
+            - 새로고침시 로그인이 유지되어야할 이유가 아직 없다
         - refresh token을 user에게 제공하지 않는 것이 권장된다
             - 서버에서 통제권을 가질 필요가 없는 서비스는 일반적으로 존재하지 않는다고 봐도 과언이 아니다
+            - 만료된 access token으로 요청이 들어왔을 때 refresh token이 유효하다면 둘 다 재발급 후 access token을 돌려주게 할 수도 있다
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
     - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
         - `Authorization: Bearer JWT`의 형태로 `Bearer `뒤에 이어붙인다
 
 - 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
     - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
-
-
-## 네트워크 환경에서의 정보 전달
-
-### URL
-
-```
-[Protocol][Host][:Port][Path][Query][Fragment]
-
-Origin = Protocol + Host + Port
-```
-
-- Origin : 세가지 하위영역이 정확히 일치할 때만 같은 오리진이다
-    - Protocol : Scheme라고도 표현한다
-    - Host
-    - Port
-- Path : 서버 내부의 실제 directory 구조와 동치가 아니다
-    - SPA를 vanilla js 기반으로 라우터를 구성해 구현할 때 history api의 pushState로 관리
-    - RESTapi에서 resource를 path의 일부분에 논리적 자원 식별자로 사용한다
-    - Next.js의 경우 (dir name)의 형태로 생략되어 실제 구조와 주소의 path가 달라질 수 있다
-- Query : ? 이후 &를 구분자로 하여 `name(key)=value`형태로 정보를 전달한다
-- Fragment : 서버로 보내지는 것은 아니지만 해당 페이지의 특정 위치를 나타낸다 (RFC 링크 주소에서의 섹션)
-
-### CORS (Cross-Origin Resource Sharing)
-
-- CORS에 해당하는 상황
-    - cdn같은 정적 파일 제공 서비스를 사용할 때
-        - fetch 등의 http api를 사용하는 경우
-        - `type="module"`을 통한 ES Module 로딩의 경우
-        - html에서 `<script src>`를 통해 cdn으로 library를 가져오는 경우는 해당하지 않는다
-    - MSA 환경(여러 application이 여러 Microservice로 존재)에서 Origin이 일치하지 않는 경우
-        - Origin은 일치하지만 Path를 기준으로 서로 다른 서버를 사용하는 경우는 해당하지 않는다
-
-### 쿠키와 세션, 로컬스토리지
-
-> 당연한거지만 RAM이 아닌 영구저장 가능한 영역을 기반으로 고민해봐야한다
-> 사용자의 요청에 따라 제공된 사용자의 권한상 인가된 모든 정보를 물리적으로 저장해버리면 바로 보안 취약점이 될 듯
-> 이것도 RFC로 정의된 영역이긴 한데 한 문서를 다 쓰지 않아서 담지 않기로 함
-
-- http cookie
-    - [RFC 6265](https://www.rfc-editor.org/info/rfc6265)
-    - http와 다르게 브라우저와의 통신에서만 활용 가능한 특수한 형태의 저장소이며 통신 규격
-        - 웹/앱을 전부 포괄하는 api를 만들 때는 사용할 수 없다
-        - 쿠키 발급도 세션, JWT처럼 서버에서 진행한다
-            - 클라이언트가 프론트에서 다룰 수 있기때문에 보안상 최대한 막아야한다
-    - default는 client에서 javascript로 마음대로 다룰 수 있기때문에 주의해야한다
-    - session, JWT등의 다른 것과 마찬가지로 최초 접속시엔 쿠키가 없고 재 로그인을 해야할 때는 필요가 없다
-    - server에서 http api의 header에 `Set-Cookie`필드를 통해 클라이언트측 브라우저에 요청
-        - CORS등의 Origin(Protocol + Host + Port)이 달라지는 상황에선 추가 설정이 필요하다
-            - 프론트엔드 측에서 credentials 옵션을 true로 설정해줘야한다
-                - fetchAPI : `credentials: 'include'`
-                - Axios : `withCredentials: true`
-            - 백엔드 측에서 정책 설정이 되어있어야 한다
-                ```
-                Access-Control-Allow-Origin: http://localhost:3000
-                Access-Control-Allow-Credentials: true
-                Access-Control-Allow-Methods: GET, POST, PUT, DELETE
-                Access-Control-Allow-Headers: Content-Type, Authorization
-                ```
-        - header fields의 Set-Cookie의 값은 ';'을 구분자로 키-값 쌍을 나누고 각 쌍에선 '='을 구분자로 key와 value를 나눈다
-            - 이 때 첫번째 위치의 키-값쌍이 실제 쿠키이고 그 이후엔 해당 쿠키의 제어 속성이 온다
-            - 키=값 쌍 형태의 속성
-                - `Domain=<도메인>` : 쿠키가 전송될 도메인 범위 제한 (생략시 current Host) (화이트리스트)
-                - `Path=<경로>` : 쿠키가 전송될 URL Path 범위 제한 (화이트리스트)
-                - `Max-Age=<초 단위의 정수>` : 쿠키의 유효 수명 (만료시 자동 삭제)
-                - `Expires=<DD Mon YYYY HH:MM:SS GMT>` : 만료일시 (Max-Age가 선순위)
-                - `SameSite=<Strict|Lax|None>` : 자동 전송 차단 범위 (CSRF 방어)
-                    - `Strict`(엄격) : 다른 도메인에서 들어오는 모든 요청에서 쿠키 차단
-                        - 들어와서 새로고침해야 쿠키 전달 가능
-                    - `Lax`(기본) : 다른 도메인의 요청 중 GET을 통해 브라우저 주소창이 Domain과 일치하는 경우 허용 
-                    - `None`(완전 허용) : 모든 요청에서 쿠키를 보내줌 (Secure 속성 필수)
-            - 단독 플래그 형태의 속성
-                - `HttpOnly` : js에서의 document.cookie 접근 차단 (XSS 토큰 탈취 방어)
-                    - js에서 만든 쿠키에서는 설정 할 수 없음
-                - `Secure` : HTTPS(TLS) 연결에서만 전송하도록 강제 (스니핑 방어)
-        - 보안 위협
-            - XSS (Cross-Site Scripting) : JS의 document.cookie를 통한 탈취
-            - CSRF (Cross-Site Request Forgery) : 탈취할 사이트인 척 내 서버에 전송을 보냈을 때 보안 설정이 안되어있다면 자동적으로 쿠키를 보내주는 기능 악용
-            - 스니핑 (Packet Sniffing) : 공용 네트워크 등의 암호화되지 않은 HTTP 패킷을 가로채 평문으로 된 정보를 탈취하는 위협
-
-- session
-    - 기본적으로는 서버에서 ram에 저장소를 만들어 두는 방식
-        - session을 만들 때 session id를 발급해 클라이언트에게 전달한다
-            - 이 때 쿠키, URL 파라미터, Authorization 등의 다양한 방식이 가능하다
-            - session id는 직접 만들어도 되지만 무작위의 UUIDv4를 사용해도 좋다
-        - 서버에 문제가 생기면 휘발된다
-        - 스레드 단위에서 제한적으로 공유할 방법은 있어도 프로세스나 컨테이너 단위에선 공유할 수 없다
-    - 별도의 외부 저장소를 통해 관리할 수 있다
-        - 파일 기반으로 외부 저장소를 만들 수 있다
-            - IPC를 통해 프로세스 단위의 공유가 가능하다
-            - 같은 Host 위의 container까지는 volume을 통해 공유할 수 있다
-        - Redis나 dbms를 통해 다른 Host의 container에서도 공유할 수 있게 할 수 있다
-    - 클라이언트는 세션 키를 기반으로 통신한다
-        - jwt를 사용할때와 같은 방식이다
-
-- web storage
-    - 브라우저가 관리하는 Origin 단위의 저장공간
-        - 일반적으로 사용자의 기기에 파일 단위로 영구저장하는 방식은 다운로드를 통해 진행된다
-    - javascript를 통해 접근 및 제어 가능하다 (막을 수 없다)
-    - 웹 스토리지는 두가지 영역으로 뉜다
-        - localStorage : Origin 당 약 5MB정도의 영구 저장소
-        - sessionStorage : 창이나 탭 영역에서 살아있을 때 유지되는 저장소
-
-- app storage
-    - 앱은 앱마다 주어지는 전용 격리 공간을 사용하거나 앱 권한을 받아 로컬 스토리지에 접근하는 두가지 방법이 있다.
-        - Internal Storage (앱의 전용 격리 폴더) : SharedPreferences, UserDefaults, SQLite DB
-    - 앱의 저장공간이나 로컬 스토리지는 손쉽게 탈취 가능하다
-        - 인증, 인가에서 사용할 JWT같은 데이터는 각 os의 하드웨어 암호화 저장소에 저장해야한다
-            - Android : keystore
-            - iOS : keychain
 
 
 ## HTTP api with JSON
@@ -360,19 +254,68 @@ Origin = Protocol + Host + Port
     - 헤더에서 `Content-Type: application/json`로 지정 후 JSON 형태의 body로 전달
         - 이 때 access token은 당연히 필수적으로 전달해야하지만 refresh token은 서버에서 관리하는 것이 좋다
             - 애초에 stateless라는 속성은 편리함만을 목적으로 한 도구이고 당연히 보안에 좋지 못하다
-- 발급 이후 header에서 `Authorization: Bearer JWT`의 형태로 전달되어야함
+- 발급 이후 header에서 `Authorization: Bearer JWT`의 형태로 전달하여 요청자의 신원을 보증하는 형태로 쓰인다
 
-- access token과 refresh token은 JWT의 내용물에서 차이가 있다
+- access token과 refresh token은 JWT의 구성요소에서 차이가 있다
+    - 공통적인 구성요소
+        - header
+            - `alg` : 서명 알고리즘
+            - `kid` : 서명시 사용한 키의 식별자
+        - payload
+            - `sub` : 유저의 외부 공개용 고유 식별자 (UUID)
+            - `jti` : access token의 고유 식별자 (UUID)
+            - `iat` : 발급일시
+            - `exp` : 만료일시
+    - access token의 추가적인 구성요소
+        - payload
+            - `role` : 해당 토큰을 발급받은 유저의 권한 정보
+    - refresh token만의 추가적인 구성요소는 지금 시점에서는 존재하지 않는다
+        - 오히려 JWT의 형태가 꼭 필요한지 고민해봐야한다
 
-- ? JWT이나 세션에서 유저 서비스에 대한 인증 및 지속 정책에 대하여 어떤 기준으로 설계해야만 하는가?
-    - 어떤 정책이 있는지부터 제대로 알아야하는 시점이 됨
-    1. 정책을 어디서 찾는가
-    2. 어떤 기준으로 판별해야하나
-    3. 어떤 방식으로 구현되는가
 
 #### JWT의 발급과 내부동작
 
-#### JWT가 발급된 상태에서 RESTful api 기반 등의 통신 예시
+> 애매한 변수의 이름짓기가 가장 힘들다
+
+1. header와 payload의 구성요소를 map 등의 형태로 만든 후 직렬화한다
+2. header와 payload를 Base64URL로 인코딩한 header64와 payload64를 만든다
+3. header64와 payload64를 '.'을 구분자로 붙인 signing input을 만든다
+4. signing input을 서명한 후 Base64URL로 인코딩해 signature를 만든다
+5. signing input와 signature를 '.'을 구분자로 붙인 JWT를 완성한다
+
+#### JWT 기반의 RESTful api 기반 등의 통신 예시
+
+
+- JWT가 없는 유저의 GET요청
+
+```http request (GET)
+GET [URL의 PATH] HTTP/1.1
+Host: [URL의 HOST(:PORT)]
+```
+
+```http response (GET)
+HTTP/1.1 200 OK
+Content-Type: text/html
+
+<!DOCTYPE html><html><head>...</head><body>...</body></html>
+```
+
+- 로그인을 통한 JWT 발급
+
+```http request (POST)
+POST [URL의 PATH] HTTP/1.1
+Host: [URL의 HOST(:PORT)]
+Content-Type: application/json
+
+{ "key": "value", ... }([Domain][SubAction]RequestDto)
+```
+
+```http response (POST)
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{ "key": "value", ... }([Domain][SubAction]ResponseDto)
+```
 
 - JWT를 가진 유저의 POST
 
@@ -575,6 +518,8 @@ Content-Type: application/json
     - 웹을 통해 접근 가능한 로컬 기반으로 저장되는 지식 저장소를 만들고 싶다
     - 내가 원하는 문서만 외부에서 접근 가능하도록 하고 싶다
     - 각 문서에 대한 여러가지 정보가 문서를 외부에 공개하는 시점에서 내가 원하지 않는 정보를 숨길 수 있게 하고 싶다
+    - 각 문서의 내용을 합쳐 배치한 새 문서를 만들거나 구성할 수 있어야한다
+        - 이 때 각 문서와 통합 문서의 동기화 여부는 아직 결정되지 않았다 (모르겠다)
 
 #### 개요
 - markdown 기반의 문서를 해석할 수 있어야한다
@@ -592,6 +537,135 @@ Content-Type: application/json
 
 #### 주의
 - 해당 서비스가 obsidian vault의 정보에 접근해 바로 사용하는지, 읽고 정리하여 db에 저장 후 동작하며 웹에서의 기록을 저장할 때 vault에 문서화 할지, 출력을 요청받지 않는 상황이라면 db에 정보를 저장만 하고 있을지 결정된 부분 없음. 세 가지 동작 이외의 경우도 있을 수 있음
+
+
+---
+
+
+## Cookie
+
+> 네트워크 환경에서의 정보 전달 방식과 프론트엔드에서의 저장 방식 및 보안 관련 정보 모음
+> 제목은 링크를 위해 간단하게 쿠키라고 했다
+
+### URL
+
+```
+[Protocol][Host][:Port][Path][Query][Fragment]
+
+Origin = Protocol + Host + Port
+```
+
+- Origin : 세가지 하위영역이 정확히 일치할 때만 같은 오리진이다
+    - Protocol : Scheme라고도 표현한다
+    - Host
+    - Port
+- Path : 서버 내부의 실제 directory 구조와 동치가 아니다
+    - SPA를 vanilla js 기반으로 라우터를 구성해 구현할 때 history api의 pushState로 관리
+    - RESTapi에서 resource를 path의 일부분에 논리적 자원 식별자로 사용한다
+    - Next.js의 경우 (dir name)의 형태로 생략되어 실제 구조와 주소의 path가 달라질 수 있다
+- Query : ? 이후 &를 구분자로 하여 `name(key)=value`형태로 정보를 전달한다
+- Fragment : 서버로 보내지는 것은 아니지만 해당 페이지의 특정 위치를 나타낸다 (RFC 링크 주소에서의 섹션)
+
+### CORS (Cross-Origin Resource Sharing)
+
+- CORS에 해당하는 상황
+    - cdn같은 정적 파일 제공 서비스를 사용할 때
+        - fetch 등의 http api를 사용하는 경우
+        - `type="module"`을 통한 ES Module 로딩의 경우
+        - html에서 `<script src>`를 통해 cdn으로 library를 가져오는 경우는 해당하지 않는다
+    - MSA 환경(여러 application이 여러 Microservice로 존재)에서 Origin이 일치하지 않는 경우
+        - Origin은 일치하지만 Path를 기준으로 서로 다른 서버를 사용하는 경우는 해당하지 않는다
+
+### 쿠키와 세션, 로컬스토리지
+
+> 당연한거지만 RAM이 아닌 영구저장 가능한 영역을 기반으로 고민해봐야한다
+> 사용자의 요청에 따라 제공된 사용자의 권한상 인가된 모든 정보를 물리적으로 저장해버리면 바로 보안 취약점이 될 듯
+> 이것도 RFC로 정의된 영역이긴 한데 한 문서를 다 쓰지 않아서 담지 않기로 함
+
+- http cookie
+    - [RFC 6265](https://www.rfc-editor.org/info/rfc6265)
+    - http와 다르게 브라우저와의 통신에서만 활용 가능한 특수한 형태의 저장소이며 통신 규격
+        - 웹/앱을 전부 포괄하는 api를 만들 때에도 cookie container가 제공되는 경우 다룰 수는 있지만 권장되지 않는 방법이다
+            - 쿠키 속성까지 동일하게 다루지 않는다고 한다 
+        - 쿠키 발급도 세션, JWT처럼 서버에서 진행한다
+            - 클라이언트가 프론트에서 다룰 수 있기때문에 보안상 최대한 막아야한다
+    - default는 client에서 javascript로 마음대로 다룰 수 있기때문에 주의해야한다
+    - session, JWT등의 다른 것과 마찬가지로 최초 접속시엔 쿠키가 없고 재 로그인을 해야할 때는 필요가 없다
+    - server에서 http api의 header에 `Set-Cookie`필드를 통해 클라이언트측 브라우저에 요청
+        - CORS등의 Origin(Protocol + Host + Port)이 달라지는 상황에선 추가 설정이 필요하다
+            - 프론트엔드 측에서 credentials 옵션을 true로 설정해줘야한다
+                - fetchAPI : `credentials: 'include'`
+                - Axios : `withCredentials: true`
+            - 백엔드 측에서 정책 설정이 되어있어야 한다
+                ```
+                Access-Control-Allow-Origin: http://localhost:3000
+                Access-Control-Allow-Credentials: true
+                Access-Control-Allow-Methods: GET, POST, PUT, DELETE
+                Access-Control-Allow-Headers: Content-Type, Authorization
+                ```
+        - header fields의 Set-Cookie의 값은 ';'을 구분자로 키-값 쌍을 나누고 각 쌍에선 '='을 구분자로 key와 value를 나눈다
+            - 이 때 첫번째 위치의 키-값쌍이 실제 쿠키이고 그 이후엔 해당 쿠키의 제어 속성이 온다
+                - `Cookie prefix` : 실제 쿠키의 이름 앞에 접두로 `__Host-`를 붙여 Secure, Path를 필수로 만들고 서브도메인이 절대 덮어쓸 수 없는 단일 호스트 전용임을 명시할 수 있음
+            - 키=값 쌍 형태의 속성
+                - `Domain=<도메인>` : 쿠키가 전송될 도메인 범위 제한 (생략시 current Host) (화이트리스트)
+                - `Path=<경로>` : 쿠키가 전송될 URL Path 범위 제한 (화이트리스트)
+                    - 쿠키의 전송 범위를 재발급 엔드포인트로 한정하여 다른 api요청에서 사용되지 않게 할 수 있음
+                - `Max-Age=<초 단위의 정수>` : 쿠키의 유효 수명 (만료시 자동 삭제)
+                - `Expires=<DD Mon YYYY HH:MM:SS GMT>` : 만료일시 (Max-Age가 선순위)
+                    - Max-Age나 Expires 속성이 모두 존재하지 않을 땐 RAM에만 저장한다
+                - `SameSite=<Strict|Lax|None>` : 자동 전송 차단 범위 (CSRF 방어)
+                    - `Strict`(엄격) : 다른 도메인에서 들어오는 모든 요청에서 쿠키 차단
+                        - 들어와서 새로고침해야 쿠키 전달 가능
+                    - `Lax`(기본) : 다른 도메인의 요청 중 GET을 통해 브라우저 주소창이 Domain과 일치하는 경우 허용 
+                    - `None`(완전 허용) : 모든 요청에서 쿠키를 보내줌 (Secure 속성 필수)
+            - 단독 플래그 형태의 속성
+                - `HttpOnly` : js에서의 document.cookie 접근 차단 (XSS 토큰 탈취 방어)
+                    - js에서 만든 쿠키에서는 설정 할 수 없음
+                - `Secure` : HTTPS(TLS) 연결에서만 전송하도록 강제 (스니핑 방어)
+    - 보안 위협의 종류
+        - XSS (Cross-Site Scripting) : JS의 document.cookie를 통한 탈취
+        - CSRF (Cross-Site Request Forgery) : 탈취할 사이트인 척 내 서버에 전송을 보냈을 때 보안 설정이 안되어있다면 자동적으로 쿠키를 보내주는 기능 악용
+        - 스니핑 (Packet Sniffing) : 공용 네트워크 등의 암호화되지 않은 HTTP 패킷을 가로채 평문으로 된 정보를 탈취하는 위협
+        - XSS을 통한 API 대리 호출 (Session Riding) : refresh token이 쿠키에 저장된 경우 스크립트가 직접 읽지는 못해도 브라우저를 시켜 재발급 API를 쏘면 새로운 Access Token이 탈취됨
+
+
+- session
+    - 기본적으로는 서버에서 ram에 저장소를 만들어 두는 방식
+        - session을 만들 때 session id를 발급해 클라이언트에게 전달한다
+            - 이 때 쿠키, URL 파라미터, Authorization 등의 다양한 방식이 가능하다
+            - session id는 직접 만들어도 되지만 무작위의 UUIDv4를 사용해도 좋다
+        - 서버에 문제가 생기면 휘발된다
+        - 스레드 단위에서 제한적으로 공유할 방법은 있어도 프로세스나 컨테이너 단위에선 공유할 수 없다
+    - 별도의 외부 저장소를 통해 관리할 수 있다
+        - 파일 기반으로 외부 저장소를 만들 수 있다
+            - IPC를 통해 프로세스 단위의 공유가 가능하다
+            - 같은 Host 위의 container까지는 volume을 통해 공유할 수 있다
+        - Redis나 dbms를 통해 다른 Host의 container에서도 공유할 수 있게 할 수 있다
+    - 클라이언트는 세션 키를 기반으로 통신한다
+        - jwt를 사용할때와 같은 방식이다
+
+- web storage
+    - 브라우저가 관리하는 Origin 단위의 저장공간
+        - 일반적으로 사용자의 기기에 파일 단위로 영구저장하는 방식은 다운로드를 통해 진행된다
+    - javascript를 통해 접근 및 제어 가능하다 (막을 수 없다)
+    - 웹 스토리지는 두가지 영역으로 뉜다
+        - localStorage : Origin 당 약 5MB정도의 영구 저장소
+        - sessionStorage : 창이나 탭 영역에서 살아있을 때 유지되는 저장소
+
+- app storage
+    - 앱은 앱마다 주어지는 전용 격리 공간을 사용하거나 앱 권한을 받아 로컬 스토리지에 접근하는 두가지 방법이 있다.
+        - Internal Storage (앱의 전용 격리 폴더) : SharedPreferences, UserDefaults, SQLite DB
+    - 앱의 저장공간이나 로컬 스토리지는 손쉽게 탈취 가능하다
+        - 인증, 인가에서 사용할 JWT같은 데이터는 각 os의 하드웨어 암호화 저장소에 저장해야한다
+            - Android : keystore
+            - iOS : keychain
+
+- 최종적으로 알아야 할 보안 전략
+    - DPoP (Proof-of-Possession, RFC 9449) : 클라이언트가 비대칭 개인키로 매 요청마다 서명을 생성하여, 토큰 문자열이 탈취되어도 해커가 단독으로 사용할 수 없게 만듦
+    - RTR (Refresh Token Rotation) : access token 재발급시 refresh token도 재발급
+        - 재사용 감지 시 해당 유저의 모든 세션 강제 폭파
+            - 단순히 요청이 중복된 경우를 위해 각 요청이 멱등성 key를 가질 수 있게 해야한다
+    - MTLS (Mutual TLS, RFC 8705) : 토큰을 클라이언트의 TLS 인증서에 바인딩하여 네트워크 연결 계층에서 위조 차단
 
 ---
 
@@ -743,7 +817,7 @@ Content-Type: text/html
 
 - RESTful api를 통해 GET POST PUT DELETE까지는 자주 사용된다
     - 물론 GET POST 외의 다른건 실무적으로 복잡한 케이스를 포함하지 못해 자주 사용되지는 않는다고 한다
-    - 심지어 GET은 body가 허용되어있지 않고 길이 제한도 있어 요청할 때도 data를 전송해야하는경우 사용이 불가하다고 한다
+    - 심지어 GET은 body가 일반적이지 않아 (Undefined behaviour) 모든 경우에서 허용된 사용이 보장된 메서드도 아니고 Path의 길이 제한도 있어 요청할 때도 data를 전송해야하는경우 사용이 불가하다고 한다
 
 - 멱등성을 보장하는 method는 GET, HEAD, PUT, DELETE, OPTIONS 등이 있다
     - POST 자체로는 멱등성이 보장되지 않기 때문에 멱등성 키를 따로 사용해 보장하기 위한 노력을 해야한다
@@ -764,7 +838,7 @@ Content-Type: text/html
 - [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
     - method, status code, fields를 포함하는 HTTP message에 대한 최신 표준이다
     - 그렇다 http header는 이제 없다 fields로 대체되었다
-        - [HTTP headers](#HTTP-headers) 열심히 정리했는데....?
+        - [HTTP headers](#http-headers) 열심히 정리했는데....?
 
 ## HTTP fields
 
