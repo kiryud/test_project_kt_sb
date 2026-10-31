@@ -187,7 +187,7 @@ entity
 
 - response dto의 역할과 책임
     - 반환을 위한 정보를 다룰 수 있어야한다
-    - 비즈니스 로직의 동작에 따른 data의 crud가 가능해야한다
+    - 비즈니스 로직의 동작에 따른 data의 반환이 가능해야한다
     - api의 반환값을 더 쉽게 만들 수 있도록 잘 설계되어있어야한다
 
 - entity의 역할과 책임
@@ -230,7 +230,7 @@ entity
             - 새로고침시 로그인이 유지되어야할 이유가 아직 없다
         - refresh token을 user에게 제공하지 않는 것이 권장된다
             - 서버에서 통제권을 가질 필요가 없는 서비스는 일반적으로 존재하지 않는다고 봐도 과언이 아니다
-            - 만료된 access token으로 요청이 들어왔을 때 refresh token이 유효하다면 둘 다 재발급 후 access token을 돌려주게 할 수도 있다
+            - 만료된 access token으로 재발급 요청이 들어왔을 때 refresh token이 유효하다면 둘 다 재발급 후 access token을 돌려주게 할 수도 있다
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
     - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
         - `Authorization: Bearer JWT`의 형태로 `Bearer `뒤에 이어붙인다
@@ -250,7 +250,7 @@ entity
 
 - 로그인을 성공한 경우 발급
     - 로그인 시도시 id와 pw를 받아 검증
-        - 소셜 로그인의 경우 OAuth 2.0을 기반으로 주어진 정보를 타 서비스에 보내 검증
+        - 소셜 로그인의 경우 OAuth 2.0과 OIDC를 기반으로 주어진 정보를 타 서비스에 보내 검증
     - 헤더에서 `Content-Type: application/json`로 지정 후 JSON 형태의 body로 전달
         - 이 때 access token은 당연히 필수적으로 전달해야하지만 refresh token은 서버에서 관리하는 것이 좋다
             - 애초에 stateless라는 속성은 편리함만을 목적으로 한 도구이고 당연히 보안에 좋지 못하다
@@ -343,7 +343,8 @@ Host: [URL의 HOST(:PORT)]
 Authorization: Bearer [JWT]
 ```
 
-nginx에서 정적 파일을 반환할 때의 응답 예시
+- nginx에서 정적 파일을 반환할 때의 응답 예시
+    - auth_request등의 설정이 없으면 JWT를 검증하지 않으니 주의
 
 ```http response (GET)
 HTTP/1.1 200 OK
@@ -352,7 +353,7 @@ Content-Type: text/html
 <!DOCTYPE html><html><head>...</head><body>...</body></html>
 ```
 
-정적 파일이 아니라 api 요청일 때의 응답 예시
+- 정적 파일이 아니라 api 요청일 때의 응답 예시
 
 ```http response (GET)
 HTTP/1.1 200 OK
@@ -378,10 +379,10 @@ Content-Type: application/json
 
 
 - http request의 header fields의 Authorization에서 유저 인증 방식을 다루게 된다
-    - JWT는 [Bearer token](https://www.rfc-editor.org/rfc/rfc6750)의 한 종류이다
+    - JWT는 [Bearer token](https://www.rfc-editor.org/rfc/rfc6750)의 방식으로 전달한다
         - 해당 RFC문서에서 `Authorization: AuthType Token`형태로 정의했다
         - [RFC6749]에서도 JWT이야기가 없는 이유는 단순이 저 시기에 아직 정의되지 않아서이다
-            - 그래서 access token이 임의의 난수로 정의되어있다
+            - 그래서 access token의 내부 형식이 규정되어있지 않다고 규정되어있다
 
 
 ### RESTful API
@@ -431,6 +432,7 @@ Content-Type: application/json
         - 그래서 container기반의 docker, docker compose에서도 pod기반의 kubernetes에서도 병렬 구조이기만 하면 가능하다
         - 당연히 하나의 컨테이너만 사용해야만 상황에선 불가능하지만 그럴 일이 없다 
             - 개인 소규모 토이프로젝트에서도 가능한 것이 nginx같은 webserver를 사용해 reverse proxy, health check, server list를 통한 load balancing을 통해 병렬 구조를 만드는 것이기 때문이다
+                - 다만 무료 nginx는 능동적인 헬스 체크를 못하고 수동적으로 실패했을 때 알아차린다
             - 평소에 하나의 컨테이너만 사용하는 구조더라도 새 서버를 새 컨테이너로 빌드해 테스트를 하고 테스트가 끝나면 요청을 새 컨테이너로 보내도록 하여 무중단 상태로 서버를 옮기는 것이 가능하다
 
 ---
@@ -586,7 +588,7 @@ Origin = Protocol + Host + Port
     - [RFC 6265](https://www.rfc-editor.org/info/rfc6265)
     - http와 다르게 브라우저와의 통신에서만 활용 가능한 특수한 형태의 저장소이며 통신 규격
         - 웹/앱을 전부 포괄하는 api를 만들 때에도 cookie container가 제공되는 경우 다룰 수는 있지만 권장되지 않는 방법이다
-            - 쿠키 속성까지 동일하게 다루지 않는다고 한다 
+            - 쿠키 속성까지 동일하게 다루지 않는다고 한다 (2026.11 기준)
         - 쿠키 발급도 세션, JWT처럼 서버에서 진행한다
             - 클라이언트가 프론트에서 다룰 수 있기때문에 보안상 최대한 막아야한다
     - default는 client에서 javascript로 마음대로 다룰 수 있기때문에 주의해야한다
@@ -605,11 +607,11 @@ Origin = Protocol + Host + Port
                 ```
         - header fields의 Set-Cookie의 값은 ';'을 구분자로 키-값 쌍을 나누고 각 쌍에선 '='을 구분자로 key와 value를 나눈다
             - 이 때 첫번째 위치의 키-값쌍이 실제 쿠키이고 그 이후엔 해당 쿠키의 제어 속성이 온다
-                - `Cookie prefix` : 실제 쿠키의 이름 앞에 접두로 `__Host-`를 붙여 Secure, Path를 필수로 만들고 서브도메인이 절대 덮어쓸 수 없는 단일 호스트 전용임을 명시할 수 있음
+                - `Cookie prefix` : 실제 쿠키의 이름 앞에 접두로 `__Host-`를 사용한다면 (이 때 `Secure`, `Path=/`를 필수적으로 요구한다) 서브도메인이 절대 덮어쓸 수 없는 단일 호스트 전용임을 명시할 수 있음
             - 키=값 쌍 형태의 속성
-                - `Domain=<도메인>` : 쿠키가 전송될 도메인 범위 제한 (생략시 current Host) (화이트리스트)
+                - `Domain=<도메인>` : 쿠키가 전송될 도메인 범위 제한 (생략시 current Host)
+                    - 이게 있어야 서브도메인까지 전송 범위가 늘어난다
                 - `Path=<경로>` : 쿠키가 전송될 URL Path 범위 제한 (화이트리스트)
-                    - 쿠키의 전송 범위를 재발급 엔드포인트로 한정하여 다른 api요청에서 사용되지 않게 할 수 있음
                 - `Max-Age=<초 단위의 정수>` : 쿠키의 유효 수명 (만료시 자동 삭제)
                 - `Expires=<DD Mon YYYY HH:MM:SS GMT>` : 만료일시 (Max-Age가 선순위)
                     - Max-Age나 Expires 속성이 모두 존재하지 않을 땐 RAM에만 저장한다
@@ -626,7 +628,7 @@ Origin = Protocol + Host + Port
         - XSS (Cross-Site Scripting) : JS의 document.cookie를 통한 탈취
         - CSRF (Cross-Site Request Forgery) : 탈취할 사이트인 척 내 서버에 전송을 보냈을 때 보안 설정이 안되어있다면 자동적으로 쿠키를 보내주는 기능 악용
         - 스니핑 (Packet Sniffing) : 공용 네트워크 등의 암호화되지 않은 HTTP 패킷을 가로채 평문으로 된 정보를 탈취하는 위협
-        - XSS을 통한 API 대리 호출 (Session Riding) : refresh token이 쿠키에 저장된 경우 스크립트가 직접 읽지는 못해도 브라우저를 시켜 재발급 API를 쏘면 새로운 Access Token이 탈취됨
+        - XSS을 통한 API 대리 호출 : refresh token이 쿠키에 저장된 경우 스크립트가 직접 읽지는 못해도 브라우저를 시켜 재발급 API를 쏘면 새로운 Access Token이 탈취됨
 
 
 - session
@@ -823,7 +825,7 @@ Content-Type: text/html
     - POST 자체로는 멱등성이 보장되지 않기 때문에 멱등성 키를 따로 사용해 보장하기 위한 노력을 해야한다
 
 - [status code](https://developer.mozilla.org/ko/docs/Web/HTTP/Reference/Status) 3자리 정수로 구성된다
-    - [RFC 2616 -10](https://www.rfc-editor.org/info/rfc2616/#section-10)
+    - [RFC 9110 - Section 15](https://www.rfc-editor.org/info/rfc9110/#section-15)
     - 분류
         - 1xx : informational responses
         - 2xx : success
@@ -848,7 +850,8 @@ Content-Type: text/html
         - trailer field의 대표적인 요소로 here_doc의 EOF같은 역할도 하는 Content-Digest가 있다
             - 이때 header field에 `Trailer: Content-Digest`를 명시해둬야한다
             - trailer field의 Content-Digest의 value로는 체크섬을 위한 값이 사용할 수 있다
-            - Content-Digest는 Content-MD5를 대체했다 (RFC 9530에서 대체됨)
+            - Content-Digest는 Digest를 대체한 필드이다 (RFC 9530에서 대체됨)
+                - Content-MD5(RFC-7231에서 폐기됨) -> Digest -> Content-Digest
     - HTTP/1.1과 달리 HTTP/2, HTTP/3부터는 텍스트 기반의 Header Line이 아니라 이진 프레임 내부의 data field 형태로 압축 전송되어 fields가 더 적합한 표현이 되었다
 
 ### Header fields, Trailer fields
@@ -864,17 +867,13 @@ Content-Type: text/html
     - next proxy까지만 유효한 fields
     - proxy에게 특정한 동작을 요구한다
     - [RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110#section-7.6.1)에 정의된 목록
-        1. Connection
-        2. Keep-Alive
-        3. Proxy-Authenticate
-        4. Proxy-Authorization
-        5. Trailer
-        6. TE
-        7. Transfer-Encoding (예: chunked)
-        8. Upgrade (웹소켓 전환용)
-            - nginx에선 웹소켓을 허용하기 위해 두 줄을 명시해줘야한다
-                - `proxy_set_header Upgrade "$http_upgrade"`
-                - `proxy_set_header Connection "upgrade"`
+        0. Connection
+        1. Proxy-Connection (Appendix C.2.2 of [HTTP/1.1])
+        2. Keep-Alive (Section 19.7.1 of [RFC2068])
+        3. TE (Section 10.1.4)
+        4. Transfer-Encoding (Section 6.1 of [HTTP/1.1])
+        5. Upgrade (Section 7.8)
+
 
 - end to end
     - 처음부터 끝까지 유효한 fields
@@ -1027,7 +1026,7 @@ BASE64URL(JWS Signature)
 - [JWK - RFC 7517](https://www.rfc-editor.org/rfc/rfc7517.html) : JWT를 통해 key를 주고받을 때의 규격
 - [JWA - RFC 7518](https://www.rfc-editor.org/rfc/rfc7518.html) : `JWT signature` 암호화 알고리즘
 - [JWT - RFC 7519](https://www.rfc-editor.org/rfc/rfc7519.html) : JWT 정의 문서
-- [JWT (updated) - RFC 7797](https://www.rfc-editor.org/rfc/rfc7797.html) : payload에서 Base64URL 안쓰기 (...? 왜?)
+- [JWS (updated) - RFC 7797](https://www.rfc-editor.org/rfc/rfc7797.html) : payload에서 Base64URL 안쓰기 (오버헤드 피하기)
 - [JWT (updated) - RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html) : 보안 체크리스트
 - [JWT for OAuth 2.0 - RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html) : OAuth 2.0에서의 JWT 권장 규격
 - [JWA (updated) - RFC 9864](https://www.rfc-editor.org/rfc/rfc9864.html) : JWT signature 암호화 알고리즘의 업데이트 버전 문서
