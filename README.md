@@ -613,8 +613,8 @@ Origin = Protocol + Host + Port
                     - 이게 있어야 서브도메인까지 전송 범위가 늘어난다
                 - `Path=<경로>` : 쿠키가 전송될 URL Path 범위 제한 (화이트리스트)
                 - `Max-Age=<초 단위의 정수>` : 쿠키의 유효 수명 (만료시 자동 삭제)
-                - `Expires=<DD Mon YYYY HH:MM:SS GMT>` : 만료일시 (Max-Age가 선순위)
-                    - Max-Age나 Expires 속성이 모두 존재하지 않을 땐 RAM에만 저장한다
+                - `Expires=<day-name, DD Mon YYYY HH:MM:SS GMT>` : 만료일시 (Max-Age가 선순위)
+                    - Max-Age나 Expires 속성이 모두 존재하지 않을 땐 세션 쿠키로 취급한다
                 - `SameSite=<Strict|Lax|None>` : 자동 전송 차단 범위 (CSRF 방어)
                     - `Strict`(엄격) : 다른 도메인에서 들어오는 모든 요청에서 쿠키 차단
                         - 들어와서 새로고침해야 쿠키 전달 가능
