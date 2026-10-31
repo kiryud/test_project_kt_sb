@@ -234,26 +234,106 @@ entity
 - 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
     - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
 
-## 쿠키와 세션, 로컬스토리지
+
+## 네트워크 환경에서의 정보 전달
+
+### URL
+
+```
+[Protocol][Host][:Port][Path][Query][Fragment]
+
+Origin = Protocol + Host + Port
+```
+
+- Origin : 세가지 하위영역이 정확히 일치할 때만 같은 오리진이다
+    - Protocol : Scheme라고도 표현한다
+    - Host
+    - Port
+- Path : 서버 내부의 실제 directory 구조와 동치가 아니다
+    - SPA를 vanilla js 기반으로 라우터를 구성해 구현할 때 history api의 pushState로 관리
+    - RESTapi에서 resource를 path의 일부분에 논리적 자원 식별자로 사용한다
+    - Next.js의 경우 (dir name)의 형태로 생략되어 실제 구조와 주소의 path가 달라질 수 있다
+- Query : ? 이후 &를 구분자로 하여 `name(key)=value`형태로 정보를 전달한다
+- Fragment : 서버로 보내지는 것은 아니지만 해당 페이지의 특정 위치를 나타낸다 (RFC 링크 주소에서의 섹션)
+
+### CORS (Cross-Origin Resource Sharing)
+
+- CORS에 해당하는 상황
+    - cdn같은 정적 파일 제공 서비스를 사용할 때
+        - fetch 등의 http api를 사용하는 경우
+        - `type="module"`을 통한 ES Module 로딩의 경우
+        - html에서 `<script src>`를 통해 cdn으로 library를 가져오는 경우는 해당하지 않는다
+    - MSA 환경(여러 application이 여러 Microservice로 존재)에서 Origin이 일치하지 않는 경우
+        - Origin은 일치하지만 Path를 기준으로 서로 다른 서버를 사용하는 경우는 해당하지 않는다
+
+### 쿠키와 세션, 로컬스토리지
 
 > 당연한거지만 RAM이 아닌 영구저장 가능한 영역을 기반으로 고민해봐야한다
+> 사용자의 요청에 따라 제공된 사용자의 권한상 인가된 모든 정보를 물리적으로 저장해버리면 바로 보안 취약점이 될 듯
+> 이것도 RFC로 정의된 영역이긴 한데 한 문서를 다 쓰지 않아서 담지 않기로 함
 
 - http cookie
+    - [RFC 6265](https://www.rfc-editor.org/info/rfc6265)
     - http와 다르게 브라우저와의 통신에서만 활용 가능한 특수한 형태의 저장소이며 통신 규격
+        - 웹/앱을 전부 포괄하는 api를 만들 때는 사용할 수 없다
+        - 쿠키 발급도 세션, JWT처럼 서버에서 진행한다
+            - 클라이언트가 프론트에서 다룰 수 있기때문에 보안상 최대한 막아야한다
     - default는 client에서 javascript로 마음대로 다룰 수 있기때문에 주의해야한다
+    - session, JWT등의 다른 것과 마찬가지로 최초 접속시엔 쿠키가 없고 재 로그인을 해야할 때는 필요가 없다
+    - server에서 http api의 header에 `Set-Cookie`필드를 통해 클라이언트측 브라우저에 요청
+        - CORS등의 Origin(Protocol + Host + Port)이 달라지는 상황에선 추가 설정이 필요하다
+            - 프론트엔드 측에서 credentials 옵션을 true로 설정해줘야한다
+                - fetchAPI : `credentials: 'include'`
+                - Axios : `withCredentials: true`
+            - 백엔드 측에서 정책 설정이 되어있어야 한다
+                ```
+                Access-Control-Allow-Origin: http://localhost:3000
+                Access-Control-Allow-Credentials: true
+                Access-Control-Allow-Methods: GET, POST, PUT, DELETE
+                Access-Control-Allow-Headers: Content-Type, Authorization
+                ```
+        - header fields의 Set-Cookie의 값은 ';'을 구분자로 키-값 쌍을 나누고 각 쌍에선 '='을 구분자로 key와 value를 나눈다
+            - 이 때 첫번째 위치의 키-값쌍이 실제 쿠키이고 그 이후엔 해당 쿠키의 제어 속성이 온다
+            - 키=값 쌍 형태의 속성
+                - `Domain=<도메인>` : 쿠키가 전송될 도메인 범위 제한 (생략시 current Host) (화이트리스트)
+                - `Path=<경로>` : 쿠키가 전송될 URL Path 범위 제한 (화이트리스트)
+                - `Max-Age=<초 단위의 정수>` : 쿠키의 유효 수명 (만료시 자동 삭제)
+                - `Expires=<DD Mon YYYY HH:MM:SS GMT>` : 만료일시 (Max-Age가 선순위)
+                - `SameSite=<Strict|Lax|None>` : 자동 전송 차단 범위 (CSRF 방어)
+                    - `Strict`(엄격) : 다른 도메인에서 들어오는 모든 요청에서 쿠키 차단
+                        - 들어와서 새로고침해야 쿠키 전달 가능
+                    - `Lax`(기본) : 다른 도메인의 요청 중 GET을 통해 브라우저 주소창이 Domain과 일치하는 경우 허용 
+                    - `None`(완전 허용) : 모든 요청에서 쿠키를 보내줌 (Secure 속성 필수)
+            - 단독 플래그 형태의 속성
+                - `HttpOnly` : js에서의 document.cookie 접근 차단 (XSS 토큰 탈취 방어)
+                    - js에서 만든 쿠키에서는 설정 할 수 없음
+                - `Secure` : HTTPS(TLS) 연결에서만 전송하도록 강제 (스니핑 방어)
+        - 보안 위협
+            - XSS (Cross-Site Scripting) : JS의 document.cookie를 통한 탈취
+            - CSRF (Cross-Site Request Forgery) : 탈취할 사이트인 척 내 서버에 전송을 보냈을 때 보안 설정이 안되어있다면 자동적으로 쿠키를 보내주는 기능 악용
+            - 스니핑 (Packet Sniffing) : 공용 네트워크 등의 암호화되지 않은 HTTP 패킷을 가로채 평문으로 된 정보를 탈취하는 위협
 
 - session
     - 기본적으로는 서버에서 ram에 저장소를 만들어 두는 방식
+        - session을 만들 때 session id를 발급해 클라이언트에게 전달한다
+            - 이 때 쿠키, URL 파라미터, Authorization 등의 다양한 방식이 가능하다
+            - session id는 직접 만들어도 되지만 무작위의 UUIDv4를 사용해도 좋다
         - 서버에 문제가 생기면 휘발된다
         - 스레드 단위에서 제한적으로 공유할 방법은 있어도 프로세스나 컨테이너 단위에선 공유할 수 없다
-    - dbms를 통해 더 안전하게 보관할 수도 있다
+    - 별도의 외부 저장소를 통해 관리할 수 있다
+        - 파일 기반으로 외부 저장소를 만들 수 있다
+            - IPC를 통해 프로세스 단위의 공유가 가능하다
+            - 같은 Host 위의 container까지는 volume을 통해 공유할 수 있다
+        - Redis나 dbms를 통해 다른 Host의 container에서도 공유할 수 있게 할 수 있다
+    - 클라이언트는 세션 키를 기반으로 통신한다
+        - jwt를 사용할때와 같은 방식이다
 
 - web storage
-    - 브라우저가 관리하는 도메인 단위의 저장공간
+    - 브라우저가 관리하는 Origin 단위의 저장공간
         - 일반적으로 사용자의 기기에 파일 단위로 영구저장하는 방식은 다운로드를 통해 진행된다
     - javascript를 통해 접근 및 제어 가능하다 (막을 수 없다)
     - 웹 스토리지는 두가지 영역으로 뉜다
-        - localStorage : 도메인 당 약 5MB정도의 영구 저장소
+        - localStorage : Origin 당 약 5MB정도의 영구 저장소
         - sessionStorage : 창이나 탭 영역에서 살아있을 때 유지되는 저장소
 
 - app storage
@@ -691,7 +771,7 @@ Content-Type: text/html
 - `Headers` 대신 `Fields`(`Header Fields` + `Trailer Fields`)로 변경되었다
     - [Message Abstraction - RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110#section-6)
     - chunked 전송 등에서 본문 맨 뒤에 붙는 `Trailer`도 `Key: Value` 형태를 쓰고 위치상 당연히 header가 아니기 때문에 두 영역을 포괄하는 표현으로 변경되었다
-        - trailer field의 대표적인 요소로 here_doc의 EOF같은 역할을 하는 Content-Digest가 있다
+        - trailer field의 대표적인 요소로 here_doc의 EOF같은 역할도 하는 Content-Digest가 있다
             - 이때 header field에 `Trailer: Content-Digest`를 명시해둬야한다
             - trailer field의 Content-Digest의 value로는 체크섬을 위한 값이 사용할 수 있다
             - Content-Digest는 Content-MD5를 대체했다 (RFC 9530에서 대체됨)
