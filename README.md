@@ -234,12 +234,16 @@ entity
             - 서버에서 통제권을 가질 필요가 없는 서비스는 일반적으로 존재하지 않는다고 봐도 과언이 아니다
         - DPoP, RTR을 통해 보안성을 강화하면 refresh token을 안전하게 제공할 수 있다
             - DPoP : `Bearer`대신 `DPoP`로 요청을 보내면 클라이언트가 비대칭키 쌍을 만들어 공개키를 서버에 보내 등록 후 비밀키로 서명된 요청을 서버에 보내는 방식
+                1. Client : POST
+                2. Server : 400 or 401 `WWW-Authenticate: DPoP`
+                3. Client : POST JWT(alg typ jwk(kty crv x y) . jti htm htu iat :ath :nonce)
+                4. Server : 200 OK JWT(access token)
             - RTR : refresh token 사용시 재발급하는 방식
                 - 단, 멱등성 키를 통해 검증한 동일한 요청이 일정 시간 안에 오는 경우 재발급이 아닌 재전송을 해줘야한다
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
     - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
         - 기본적으로는 `Authorization: Bearer [JWT]`의 형태로 `Bearer `뒤에 JWT를 이어붙인다
-        - DPoP을 사용한다면 `Authorization: DPoP [JWT]`의 형태로 `DPoP `뒤에 JWT를 이어붙인다
+        - DPoP을 사용한다면 `Authorization: DPoP [JWT]`의 형태로 `DPoP `뒤에 JWT를 이어붙이고 `DPoP: [비밀키로 서명된 JWT]`를 헤더에 추가해야한다
 
 - 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
     - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
