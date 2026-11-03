@@ -62,6 +62,7 @@
     - http에선 잘 되었는데 https부턴 암호화가 강제되어 sendfile이 커널에서 처리되지 못함
         - 암호화를 유저 모드의 메모리에 복사해서 진행 후 전송해야했음
     - kTLS(kernel TLS)을 통해 https에서도 최대한 커널모드를 유지할 수 있게 되었다
+        - http/1.1 기반이며 http/2 이후는 프로토콜의 변경으로 다시 안된다
         - `ssl_conf_command Options KTLS;`을 명시해 활성화
         - Linux Kernel 4.13+, OpenSSL 3.0+, nginx의 합작
             - 이 버전은 TLSv1.2만 지원 가능해서 TLSv1.3을 위해선 Linux Kernel 5.2+ 필요
@@ -206,6 +207,7 @@ entity
     - [UUID](#uuid)란?
     - UUID와 auto increment를 모두 사용해야하나?
         - 내부적으로는 indexing하기 좋은 auto increment인 정수를 사용하는것이 좋고 외부에 공개하는 유저 식별자는 UUID로 하는것이 좋다
+            - UUID를 저장할 땐 문자열이 아닌 BINARY(16)을 사용해야한다
         - RESTful api를 지향한다면 UUID를 resource-id로 사용하게 된다
             - UUIDv7는 첫 영역이 timestamp라서 등록 순서대로 정렬된다
                 - B+Tree기반의 index에 굉장히 좋다
@@ -247,6 +249,8 @@ entity
 
 - 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
     - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
+    - 공개키를 인증 서버에서 관리하고 `GET /.well-known/openid-configuration/[PATH]/jwks.json`형태로 엔드포인트를 열어 
+        - [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414#section-5)
 
 
 ## HTTP api with JSON
@@ -261,6 +265,7 @@ entity
 - 로그인을 성공한 경우 발급
     - 로그인 시도시 id와 pw를 받아 검증
         - 소셜 로그인의 경우 OAuth 2.0과 OIDC를 기반으로 주어진 정보를 타 서비스에 보내 검증
+        - 토큰 발급, 로그인 요청시 request의 header에선 `Content-Type: application/x-www-form-urlencoded`를 사용하고 body는 key=value&key=value형태의 평문 문자열이다
     - 헤더에서 `Content-Type: application/json`로 지정 후 JSON 형태의 body로 전달
         - 이 때 access token은 당연히 필수적으로 전달해야하지만 refresh token은 서버에서 관리하는 것이 좋다
             - 애초에 stateless라는 속성은 편리함만을 목적으로 한 도구이고 당연히 보안에 좋지 못하다
@@ -617,7 +622,7 @@ Origin = Protocol + Host + Port
                 ```
         - header fields의 Set-Cookie의 값은 ';'을 구분자로 키-값 쌍을 나누고 각 쌍에선 '='을 구분자로 key와 value를 나눈다
             - 이 때 첫번째 위치의 키-값쌍이 실제 쿠키이고 그 이후엔 해당 쿠키의 제어 속성이 온다
-                - `Cookie prefix` : 실제 쿠키의 이름 앞에 접두로 `__Host-`를 사용한다면 (이 때 `Secure`, `Path=/`를 필수적으로 요구한다) 서브도메인이 절대 덮어쓸 수 없는 단일 호스트 전용임을 명시할 수 있음
+                - `Cookie prefix` : 실제 쿠키의 이름 앞에 접두로 `__Host-`를 사용한다면 (이 때 `Secure`, `Path=/`를 필수적으로 요구하고 `Domain`은 금지된다) 서브도메인이 절대 덮어쓸 수 없는 단일 호스트 전용임을 명시할 수 있음
             - 키=값 쌍 형태의 속성
                 - `Domain=<도메인>` : 쿠키가 전송될 도메인 범위 제한 (생략시 current Host)
                     - 이게 있어야 서브도메인까지 전송 범위가 늘어난다
@@ -1049,6 +1054,7 @@ BASE64URL(JWS Signature)
     - 해당 토큰에 대한 정보
     - JWS, JWE의 header 구성이 다르고 경우에 따라 선택해 구성해야한다
     - 기본적으로 `alg`라는 서명 알고리즘을 필수로 가져야하며 JWE의 경우 `enc`도 필수로 가져야한다
+        - 서버는 `alg`를 신뢰할 이유가 없다
 - payload
     - 이 영역에선 registered claim과 겹치지 않는 모든 것이 허용된다
     - public claim으로 등록된 영역은 관련된 서비스(OAuth 등)를 사용하는 이상 피해야한다
