@@ -225,17 +225,21 @@ entity
 #### auth service 구현
 - [`Cookie`](#cookie)란?
     - browser에서 refresh(F5)로는 사라지지 않는다
-        - `HttpOnly ; SameSite=<Strict|Lax> ; __Host-[name]=[host] ; Secure ; Path=/`
+        - 필요시 `HttpOnly ; SameSite=<Strict|Lax> ; __Host-[name]=[host] ; Secure ; Path=/` attributes와 함께 사용하여 보안을 강화해 사용하면 새로고침시에도 access token을 유지시킬 수 있다
 - [`JWT`](#json-web-token) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
         - 일단 access token은 웹의 스토리지가 아닌 램에서 다룬다
             - 새로고침시 로그인이 유지되어야할 이유가 아직 없다
-        - refresh token을 user에게 제공하지 않는 것이 권장된다
+        - refresh token을 서버에서도 관리하는 것이 권장된다
             - 서버에서 통제권을 가질 필요가 없는 서비스는 일반적으로 존재하지 않는다고 봐도 과언이 아니다
-            - 만료된 access token으로 재발급 요청이 들어왔을 때 refresh token이 유효하다면 둘 다 재발급 후 access token을 돌려주게 할 수도 있다
+        - DPoP, RTR을 통해 보안성을 강화하면 refresh token을 안전하게 제공할 수 있다
+            - DPoP : `Bearer`대신 `DPoP`로 요청을 보내면 클라이언트가 비대칭키 쌍을 만들어 공개키를 서버에 보내 등록 후 비밀키로 서명된 요청을 서버에 보내는 방식
+            - RTR : refresh token 사용시 재발급하는 방식
+                - 단, 멱등성 키를 통해 검증한 동일한 요청이 일정 시간 안에 오는 경우 재발급이 아닌 재전송을 해줘야한다
     - spring security의 http security를 통해 토큰 검증 후 인가 정보 관리
     - 해당 토큰은 header fields 중 Authorization을 통해 주고받게 된다
-        - `Authorization: Bearer JWT`의 형태로 `Bearer `뒤에 이어붙인다
+        - 기본적으로는 `Authorization: Bearer [JWT]`의 형태로 `Bearer `뒤에 JWT를 이어붙인다
+        - DPoP을 사용한다면 `Authorization: DPoP [JWT]`의 형태로 `DPoP `뒤에 JWT를 이어붙인다
 
 - 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
     - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
@@ -665,11 +669,12 @@ Origin = Protocol + Host + Port
             - iOS : keychain
 
 - 최종적으로 알아야 할 보안 전략
-    - DPoP (Proof-of-Possession, RFC 9449) : 클라이언트가 비대칭 개인키로 매 요청마다 서명을 생성하여, 토큰 문자열이 탈취되어도 해커가 단독으로 사용할 수 없게 만듦
+    - DPoP (Proof-of-Possession, [RFC 9449](https://www.rfc-editor.org/rfc/rfc9449)) : 클라이언트가 비대칭 개인키로 매 요청마다 서명을 생성하여, 토큰 문자열이 탈취되어도 해커가 단독으로 사용할 수 없게 만듦
     - RTR (Refresh Token Rotation) : access token 재발급시 refresh token도 재발급
         - 재사용 감지 시 해당 유저의 모든 세션 강제 폭파
             - 단순히 요청이 중복된 경우를 위해 각 요청이 멱등성 key를 가질 수 있게 해야한다
-    - MTLS (Mutual TLS, RFC 8705) : 토큰을 클라이언트의 TLS 인증서에 바인딩하여 네트워크 연결 계층에서 위조 차단
+    - MTLS (Mutual TLS, [RFC 8705](https://www.rfc-editor.org/rfc/rfc8705)) : 토큰을 클라이언트의 TLS 인증서에 바인딩하여 네트워크 연결 계층에서 위조 차단
+        - 인증서(예시 : 공인인증서)가 나온 부분에서 알겠지만 일반적인 서비스가 이런식으로 클라이언트에게 요구하면 사용되지 못한다
 
 ---
 
