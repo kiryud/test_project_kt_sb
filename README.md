@@ -224,6 +224,8 @@ entity
 
 #### auth service 구현
 - [`Cookie`](#cookie)란?
+    - browser에서 refresh(F5)로는 사라지지 않는다
+        - `HttpOnly ; SameSite=<Strict|Lax> ; __Host-[name]=[host] ; Secure ; Path=/`
 - [`JWT`](#json-web-token) 기반의 인증 시스템 구현
     - 로그인 성공시 access token과 refresh token 발급
         - 일단 access token은 웹의 스토리지가 아닌 램에서 다룬다
