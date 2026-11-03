@@ -249,8 +249,11 @@ entity
 
 - 만약 서버가 확장된다면 user service에서 분리되어 api를 통해 접근 가능한 하나의 서비스로 작동해야만 함
     - user service 이외의 서비스가 존재한다면 이미 인증만을 담당하고 각 서비스에서 인가할 수 있게 비대칭 키 형태로 서명하여 공개키를 각 서비스에서 가지고 있을 것이다
-    - 공개키를 인증 서버에서 관리하고 `GET /.well-known/openid-configuration/[PATH]/jwks.json`형태로 엔드포인트를 열어 
+    - 공개키를 인증 서버에서 관리하고 `GET /.well-known/openid-configuration/[PATH]`형태로 엔드포인트를 열어 다른 서버가 접속할 수 있게 하고 이 때 키가 있는 uri(`jwks_uri`)가 담긴 JSON을 반환한다
         - [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414#section-5)
+        1. Resource server : GET /.well-known/openid-configuration/[PATH]
+        2. Auth server : {"issuer": [DOMAIN], "jwks_uri": [DOMAIN]/jwks.json}
+        3. Resource server : GET /jwks.json
 
 
 ## HTTP api with JSON
