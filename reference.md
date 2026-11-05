@@ -28,7 +28,7 @@
         - TCP, http/1.1 기반이며 http/2는 프로토콜의 변경으로 다시 유저모드의 동작이 필요해서, http/3은 UDP기반이라 안된다
         - `ssl_conf_command Options KTLS;`을 명시해 활성화 (`sendfile on;`도 같이 써줘야한다)
         - Linux Kernel 4.13+, OpenSSL 3.0+, nginx의 합작
-            - 이 버전은 TLSv1.2만 지원 가능해서 TLSv1.3을 위해선 Linux Kernel 5.1+ 필요
+            - 이 버전은 TLSv1.2의 TX(송신)만 지원 가능하고 TLSv1.3의 TX(송신)을 위해선 Linux Kernel 5.1+ 필요
                 - TLSv1.2의 RX(수신)은 4.17+, TLSv1.3의 RX(수신)은 5.2+에서 추가되었다
             - 사용할 nginx의 이미지에서 각 버전이 어떻게 구성되어있는지 잘 살펴야할 것 같다
         - TLS handshake만 user mode의 OpenSSL에서 처리하고 session key(대칭키임) Linux kernel socket에게 넘겨줌
